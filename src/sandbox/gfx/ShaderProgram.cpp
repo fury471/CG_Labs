@@ -94,8 +94,11 @@ ShaderProgram::~ShaderProgram() noexcept
 
 ShaderProgram::ShaderProgram(ShaderProgram&& other) noexcept
 	: m_id(std::exchange(other.m_id, 0u))
-	, m_uniform_locations(std::move(other.m_uniform_locations))
 {
+	// Uniform locations are a rebuildable cache, not ownership state. Avoid
+	// moving the unordered_map here so the move operation remains genuinely
+	// noexcept and cannot allocate during GPU ownership transfer.
+	m_uniform_locations.clear();
 	other.m_uniform_locations.clear();
 }
 
@@ -104,7 +107,7 @@ ShaderProgram& ShaderProgram::operator=(ShaderProgram&& other) noexcept
 	if (this != &other) {
 		reset();
 		m_id = std::exchange(other.m_id, 0u);
-		m_uniform_locations = std::move(other.m_uniform_locations);
+		m_uniform_locations.clear();
 		other.m_uniform_locations.clear();
 	}
 	return *this;
