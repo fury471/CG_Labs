@@ -22,7 +22,7 @@ struct DebugVertex final
 
 constexpr float kGridExtent = 10.0f;
 constexpr int kGridHalfLineCount = 10;
-constexpr GLsizei kAxisVertexCount = 6;
+constexpr std::size_t kAxisVertexCount = 6u;
 
 constexpr std::array<DebugVertex, kAxisVertexCount> kAxisVertices{
 	// X axis: red
@@ -74,7 +74,7 @@ void add_message(RendererBuildResult& result, std::string message)
 std::vector<DebugVertex> build_grid_and_axes_vertices()
 {
 	std::vector<DebugVertex> vertices;
-	vertices.reserve(static_cast<std::size_t>((kGridHalfLineCount * 2 + 1) * 4 + kAxisVertexCount));
+	vertices.reserve(static_cast<std::size_t>((kGridHalfLineCount * 2 + 1) * 4) + kAxisVertexCount);
 
 	constexpr float grid_colour[3]{ 0.32f, 0.36f, 0.42f };
 	for (int i = -kGridHalfLineCount; i <= kGridHalfLineCount; ++i) {
