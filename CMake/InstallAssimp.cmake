@@ -15,7 +15,6 @@ FetchContent_Declare (
 	GIT_REPOSITORY [[https://github.com/assimp/assimp.git]]
 	GIT_TAG "v${LUGGCGL_ASSIMP_VERSION}"
 	GIT_SHALLOW ON
-	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable (assimp)
 
