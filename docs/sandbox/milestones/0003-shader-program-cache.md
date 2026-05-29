@@ -1,7 +1,7 @@
 # Milestone 3 Record: ShaderProgram Interface and Cached Bindings
 
 - **Milestone:** 3
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m3-shader-cache`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -85,9 +85,20 @@ Shader probe: passed/failed
 | Move-only GPU ownership remains intact | Program name moves; caches are cleared |
 | Legacy assignments remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` running with OpenGL 4.6, debug context enabled;
+- `Sandbox status` panel visible;
+- `Shader probe: passed` visible;
+- shader probe messages report compile/link diagnostics, uniform caching, cached uniform writes, and cache clear checks as passed;
+- Milestone 2 ownership probe remains passed in the same run;
+- developer confirmation that remaining legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -103,22 +114,32 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | Panel shows `Milestone 3: ShaderProgram interface and cached bindings` | Pending |
-| `SfmSandbox` | Panel shows `Shader probe: passed` | Pending |
-| `SfmSandbox` | Shader probe messages report compile/link and cache checks as passed | Pending |
-| `SfmSandbox` | Milestone 2 ownership probe still passes | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 3: ShaderProgram interface and cached bindings` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Shader probe: passed` | Passed — screenshot confirmed |
+| `SfmSandbox` | Shader probe messages report compile/link and cache checks as passed | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - The shader interface supports source strings only; file-based shader loading is deferred.
 - The probe validates shader/program interface behavior but does not draw geometry.
 - Program binary caching, reflection of all active uniforms, shader hot reload, and automatic include/preprocessor systems are deliberately deferred.
 - `SfmSandbox` still does not render scene geometry, point clouds, camera poses, trajectories or reconstructed meshes.
 
-## Completion gate
+## Completion assessment
 
-Milestone 3 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` shader probe passes | Passed — screenshot confirmed |
+| Milestone 2 ownership probe remains passing | Passed — screenshot confirmed |
+| Uniform locations are cached and missing uniforms are cached | Passed — source implementation and probe |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 3 is complete and may be merged into `feature/sfm-visualization-sandbox`.
