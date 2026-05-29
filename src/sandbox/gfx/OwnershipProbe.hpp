@@ -21,6 +21,9 @@ struct OwnershipProbeResult final
 /// Creates every Milestone 2 GPU owner, transfers ownership by move, and checks
 /// the C++-side ownership invariants. Call this only after an OpenGL context is
 /// current and before the context is destroyed.
-[[nodiscard]] OwnershipProbeResult run_ownership_probe(std::string_view label_prefix) noexcept;
+///
+/// This function intentionally returns human-readable messages for the ImGui
+/// validation panel, so it may allocate memory and must not promise `noexcept`.
+[[nodiscard]] OwnershipProbeResult run_ownership_probe(std::string_view label_prefix);
 
 } // namespace sfm::gfx
