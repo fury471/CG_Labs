@@ -36,17 +36,15 @@ target_include_directories (
 	PUBLIC
 		"${CMAKE_SOURCE_DIR}/src"
 		"${CMAKE_BINARY_DIR}"
-		"${ASSIMP_INCLUDE_DIRS}"
 )
 
 target_link_libraries (
 	bonobo
 	PUBLIC
-		${ASSIMP_LIBRARIES}
+		assimp::assimp
 		external_libs
 		glfw
-		glm
-		$<$<NOT:$<BOOL:${WIN32}>>:dl>
+		glm::glm
 	PRIVATE
 		CG_Labs_options
 		stb::stb
