@@ -17,6 +17,5 @@ FetchContent_Declare (
 	GIT_REPOSITORY [[https://github.com/glfw/glfw.git]]
 	GIT_TAG "${LUGGCGL_GLFW_VERSION}"
 	GIT_SHALLOW ON
-	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable (glfw)
