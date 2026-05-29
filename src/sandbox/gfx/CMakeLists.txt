@@ -15,5 +15,5 @@ target_link_libraries (
 	sfm_sandbox_gfx
 	PUBLIC
 		sfm_sandbox_options
-		external_libs
+		glad_gl_core_46
 )
