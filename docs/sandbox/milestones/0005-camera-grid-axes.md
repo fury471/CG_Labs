@@ -1,7 +1,7 @@
 # Milestone 5 Record: Camera Transform Path and Grid/Axes Primitive
 
 - **Milestone:** 5
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m5-camera-grid-axes`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -67,9 +67,22 @@ The status panel also displays the camera aspect so resize behavior is visible d
 | Milestone 3 and 2 probes remain visible | `SfmSandbox` still displays both regression probes |
 | Legacy assignments remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` running with the ground grid and green Y axis visible;
+- `Sandbox status` panel visible;
+- `Renderer: ready` visible;
+- positive line vertex count visible;
+- renderer messages report shader build, immutable vertex-buffer upload, DSA vertex-array layout and central renderer readiness;
+- Milestone 3 shader probe remains passed in the same run;
+- Milestone 2 ownership probe remains passed in the same run;
+- developer confirmation that camera movement, resize/aspect behavior, legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -85,26 +98,36 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | Grid and RGB axes are visible in the viewport | Pending |
-| `SfmSandbox` | Panel shows `Milestone 5: Camera transform path and grid/axes primitive` | Pending |
-| `SfmSandbox` | Panel shows `Renderer: ready` | Pending |
-| `SfmSandbox` | Panel shows a positive line vertex count | Pending |
-| `SfmSandbox` | Moving/looking with WASD/QE + left mouse changes the grid/axes view | Pending |
-| `SfmSandbox` | Resizing changes framebuffer size and camera aspect readout | Pending |
-| `SfmSandbox` | Milestone 3 shader probe still passes | Pending |
-| `SfmSandbox` | Milestone 2 ownership probe still passes | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Grid and RGB axes are visible in the viewport | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 5: Camera transform path and grid/axes primitive` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Renderer: ready` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows a positive line vertex count | Passed — screenshot confirmed |
+| `SfmSandbox` | Moving/looking with WASD/QE + left mouse changes the grid/axes view | Passed — developer confirmed |
+| `SfmSandbox` | Resizing changes framebuffer size and camera aspect readout | Passed — developer confirmed |
+| `SfmSandbox` | Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - The renderer still draws generated debug geometry only.
 - There is no scene graph, mesh abstraction, camera frustum visualization, point cloud rendering, trajectory rendering or reconstructed mesh rendering yet.
 - Grid and axes shaders are still source-string based; file-based shader loading remains deferred.
 - The renderer uses a single line pipeline; no render queues, pass graph, materials, depth policy abstraction or draw batching exists yet.
 
-## Completion gate
+## Completion assessment
 
-Milestone 5 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` renders grid and axes through camera transform | Passed — screenshot confirmed |
+| Camera movement and resize/aspect path work | Passed — developer confirmed |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 5 is complete and may be merged into `feature/sfm-visualization-sandbox`.
