@@ -9,10 +9,10 @@ namespace sfm::gfx
 
 Sampler::Sampler(std::string_view debug_label) noexcept
 {
-	// Samplers are independent state objects, but OpenGL does not provide a
-	// glCreateSamplers DSA entry point. glGenSamplers is therefore the correct
-	// creation API; later configuration can still be done without texture binds.
-	glGenSamplers(1, &m_id);
+	// OpenGL 4.5+ provides DSA creation for sampler objects too. Keeping this
+	// constructor in the glCreate* family makes ownership construction consistent
+	// across the Milestone 2 resource layer.
+	glCreateSamplers(1, &m_id);
 	detail::label_object(GL_SAMPLER, m_id, debug_label);
 }
 
