@@ -1,6 +1,7 @@
 #include "DebugLabel.hpp"
 
-#include <limits>
+#include <algorithm>
+#include <cstddef>
 
 namespace sfm::gfx::detail
 {
@@ -12,11 +13,16 @@ void label_object(GLenum identifier, GLuint object, std::string_view label) noex
 	if (object == 0u || label.empty() || glObjectLabel == nullptr)
 		return;
 
-	// Sandbox labels are short developer-authored diagnostics. Clamp the length
-	// defensively before converting from size_t to the OpenGL signed size type.
-	constexpr auto glsizei_max = static_cast<std::size_t>(std::numeric_limits<GLsizei>::max());
-	GLsizei const length = static_cast<GLsizei>(label.size() < glsizei_max ? label.size() : glsizei_max);
-	glObjectLabel(identifier, object, length, label.data());
+	GLint max_label_length = 0;
+	glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_label_length);
+	if (max_label_length <= 1)
+		return;
+
+	// The OpenGL limit includes space for the terminating null character. Pass
+	// an explicit character count which is strictly smaller than that limit.
+	auto const max_character_count = static_cast<std::size_t>(max_label_length - 1);
+	auto const character_count = std::min(label.size(), max_character_count);
+	glObjectLabel(identifier, object, static_cast<GLsizei>(character_count), label.data());
 }
 
 } // namespace sfm::gfx::detail
