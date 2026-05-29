@@ -15,7 +15,7 @@ public:
 	void initialise() const noexcept;
 	void set_colour(Colour colour) noexcept;
 	[[nodiscard]] Colour const& colour() const noexcept;
-	void render() const noexcept;
+	void render(int framebuffer_width, int framebuffer_height) const noexcept;
 
 private:
 	Colour m_colour;
