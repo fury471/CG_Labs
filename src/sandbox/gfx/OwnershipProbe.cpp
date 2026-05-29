@@ -7,6 +7,8 @@
 #include "Texture2D.hpp"
 #include "VertexArray.hpp"
 
+#include <glad/gl.h>
+
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -78,7 +80,7 @@ void check_resource(std::string_view label_prefix, std::string_view resource_nam
 
 } // namespace
 
-OwnershipProbeResult run_ownership_probe(std::string_view label_prefix) noexcept
+OwnershipProbeResult run_ownership_probe(std::string_view label_prefix)
 {
 	OwnershipProbeResult result{};
 	result.passed = true;
