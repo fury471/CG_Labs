@@ -27,11 +27,10 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - name: Install MacOS Packages
-      run: |
-        brew install glfw
+    - name: Install glad generation requirement
+      run: python3 -m pip install --user "Jinja2>=2.7,<4.0"
 
     - name: Generate
       run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Xcode -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
