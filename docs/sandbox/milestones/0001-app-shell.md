@@ -1,7 +1,7 @@
 # Milestone 1 Record: Application Shell and Target Boundaries
 
 - **Milestone:** 1
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-29
 - **Development branch:** `feature/sfm-m1-app-shell`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -60,11 +60,11 @@ src/core/
 
 The only root-level change is adding the new CMake subdirectories for sandbox libraries and the new application.
 
-## Validation still required on Windows / VS 2026 / Ninja
+## Local validation — Windows / VS 2026 / Ninja
 
-This record does **not** declare Milestone 1 complete until the intended local environment verifies build and launch behaviour.
+The developer reported successful completion of the clean build and manual run checks on 2026-05-29 using the intended local VS 2026/Ninja workflow.
 
-From the Visual Studio 2026 x64 Developer Command Prompt, after switching to this branch:
+Reference commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -76,29 +76,34 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-Locate binaries if necessary:
-
-```bat
-dir /s /b build\*.exe
-```
-
 Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and mouse/UI interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens with dark frame and `Sandbox status` panel | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` behave correctly | Pending |
-| `SfmSandbox` | Window resize updates framebuffer-size readout and clears correctly | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and mouse/UI interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens with dark frame and `Sandbox status` panel | Passed — developer confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` behave correctly | Passed — developer confirmed |
+| `SfmSandbox` | Window resize updates framebuffer-size readout and clears correctly | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+No automated CI run is attached to this checkpoint; the acceptance evidence is the developer's local build-and-launch validation.
+
+## Known limitations at completion
 
 - `SfmSandbox` does not yet render scene geometry, reconstruction data, camera poses or point clouds.
 - The window/platform bootstrap still reuses Bonobo intentionally; a new renderer/resource architecture begins beneath this boundary in later milestones.
 - No automated build or application-level test is added in this milestone.
 - No performance claim is made from the displayed CPU-frame value; it is an initial development statistic only.
 
-## Completion gate
+## Completion assessment
 
-After local validation, update this document with observed results and merge `feature/sfm-m1-app-shell` into `feature/sfm-visualization-sandbox` only when all Milestone 1 acceptance criteria are satisfied.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| New `SfmSandbox` launches and presents a frame | Passed — developer confirmed |
+| New targets are visibly separated from legacy sources | Passed — verified by source layout |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 1 is complete and may be merged into `feature/sfm-visualization-sandbox`.
