@@ -1,71 +1,22 @@
-find_package (glfw3 QUIET ${LUGGCGL_GLFW_MIN_VERSION})
-if (NOT glfw3_FOUND)
-	FetchContent_Declare (
-		glfw
-		GIT_REPOSITORY [[https://github.com/glfw/glfw.git]]
-		GIT_TAG "${LUGGCGL_GLFW_DOWNLOAD_VERSION}"
-		GIT_SHALLOW ON
-	)
+# Build the pinned GLFW dependency as part of the main CMake graph.
+set (GLFW_BUILD_DOCS OFF CACHE BOOL "Disable GLFW documentation" FORCE)
+set (GLFW_BUILD_TESTS OFF CACHE BOOL "Disable GLFW tests" FORCE)
+set (GLFW_BUILD_EXAMPLES OFF CACHE BOOL "Disable GLFW examples" FORCE)
+set (GLFW_INSTALL OFF CACHE BOOL "Use GLFW as an embedded dependency" FORCE)
+set (GLFW_LIBRARY_TYPE STATIC CACHE STRING "Link GLFW statically" FORCE)
 
-	FetchContent_GetProperties (glfw)
-	if (NOT glfw_POPULATED)
-		message (STATUS "Cloning glfw…")
-		FetchContent_Populate (glfw)
-	endif ()
-
-	set (glfw_INSTALL_DIR "${FETCHCONTENT_BASE_DIR}/glfw-install")
-	if (NOT EXISTS "${glfw_INSTALL_DIR}")
-		file (MAKE_DIRECTORY ${glfw_INSTALL_DIR})
-	endif ()
-
-	message (STATUS "Setting up CMake for glfw…")
-
-		# Build cmake command arguments conditionally to avoid passing empty values
-		set(cmake_args)
-		if (CMAKE_GENERATOR)
-			list(APPEND cmake_args -G "${CMAKE_GENERATOR}")
-			if (CMAKE_GENERATOR_PLATFORM)
-				list(APPEND cmake_args -A "${CMAKE_GENERATOR_PLATFORM}")
-			endif ()
-		endif ()
-		list(APPEND cmake_args
-			-DGLFW_BUILD_DOCS=OFF
-			-DGLFW_BUILD_TESTS=OFF
-			-DGLFW_BUILD_EXAMPLES=OFF
-			-DCMAKE_INSTALL_PREFIX=${glfw_INSTALL_DIR}
-			-DCMAKE_BUILD_TYPE=Release
-			${glfw_SOURCE_DIR}
-		)
-
-		execute_process (
-			COMMAND ${CMAKE_COMMAND} ${cmake_args}
-			OUTPUT_VARIABLE stdout
-			ERROR_VARIABLE stderr
-			RESULT_VARIABLE result
-			WORKING_DIRECTORY ${glfw_BINARY_DIR}
-		)
-		if (result)
-			message (FATAL_ERROR "CMake setup for glfw failed: ${result}\n"
-								 "Standard output: ${stdout}\n"
-								 "Error output: ${stderr}")
-		endif ()
-
-	message (STATUS "Building and installing glfw…")
-	execute_process (
-		COMMAND ${CMAKE_COMMAND} --build ${glfw_BINARY_DIR}
-		                         --config Release
-		                         --target install
-		OUTPUT_VARIABLE stdout
-		ERROR_VARIABLE stderr
-		RESULT_VARIABLE result
-	)
-	if (result)
-		message (FATAL_ERROR "Build step for glfw failed: ${result}\n"
-		                     "Standard output: ${stdout}\n"
-		                     "Error output: ${stderr}")
-	endif ()
-
-	list (APPEND CMAKE_PREFIX_PATH ${glfw_INSTALL_DIR}/lib/cmake)
-
-	set (glfw_INSTALL_DIR)
+# The assignments only require one Linux window-system backend; disabling
+# Wayland avoids pulling additional protocol-generation packages into CI.
+if (UNIX AND NOT APPLE)
+	set (GLFW_BUILD_X11 ON CACHE BOOL "Build GLFW X11 backend" FORCE)
+	set (GLFW_BUILD_WAYLAND OFF CACHE BOOL "Do not build GLFW Wayland backend" FORCE)
 endif ()
+
+FetchContent_Declare (
+	glfw
+	GIT_REPOSITORY [[https://github.com/glfw/glfw.git]]
+	GIT_TAG "${LUGGCGL_GLFW_VERSION}"
+	GIT_SHALLOW ON
+	EXCLUDE_FROM_ALL
+)
+FetchContent_MakeAvailable (glfw)
