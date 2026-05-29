@@ -1,7 +1,7 @@
 # Milestone 4 Record: Central Renderer and First Rendered Geometry
 
 - **Milestone:** 4
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m4-central-renderer`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -74,9 +74,21 @@ Milestone 2 regression: GPU RAII ownership
 | Shader and ownership probes remain visible | `SfmSandbox` still displays Milestone 3 and Milestone 2 probes |
 | Legacy assignments remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` running with the coloured triangle visible;
+- `Sandbox status` panel visible;
+- `Renderer: ready` visible;
+- renderer messages report shader build, immutable vertex-buffer upload, DSA vertex-array layout and central renderer readiness;
+- Milestone 3 shader probe remains passed in the same run;
+- Milestone 2 ownership probe remains passed in the same run;
+- developer confirmation that remaining legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -92,24 +104,34 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | A coloured triangle is visible in the viewport | Pending |
-| `SfmSandbox` | Panel shows `Milestone 4: Central renderer and first geometry` | Pending |
-| `SfmSandbox` | Panel shows `Renderer: ready` | Pending |
-| `SfmSandbox` | Renderer messages report shader build, vertex-buffer upload and VAO layout success | Pending |
-| `SfmSandbox` | Milestone 3 shader probe still passes | Pending |
-| `SfmSandbox` | Milestone 2 ownership probe still passes | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | A coloured triangle is visible in the viewport | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 4: Central renderer and first geometry` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Renderer: ready` | Passed — screenshot confirmed |
+| `SfmSandbox` | Renderer messages report shader build, vertex-buffer upload and VAO layout success | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - The renderer draws one hard-coded triangle only.
 - No scene graph, camera transform, mesh abstraction, material system, index buffer, or instancing path exists yet.
 - The renderer uses source-string shaders; file-based shader loading remains deferred.
 - `SfmSandbox` still does not render point clouds, camera poses, trajectories, reconstructed meshes or SfM data.
 
-## Completion gate
+## Completion assessment
 
-Milestone 4 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` renders first visible geometry | Passed — screenshot confirmed |
+| Central renderer owns first draw-call setup | Passed — source implementation and screenshot |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 4 is complete and may be merged into `feature/sfm-visualization-sandbox`.
