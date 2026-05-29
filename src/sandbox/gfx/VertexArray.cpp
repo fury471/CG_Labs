@@ -34,6 +34,39 @@ VertexArray& VertexArray::operator=(VertexArray&& other) noexcept
 	return *this;
 }
 
+bool VertexArray::bind_vertex_buffer(GLuint binding_index,
+                                     GLuint buffer,
+                                     GLintptr offset,
+                                     GLsizei stride) const noexcept
+{
+	if (m_id == 0u || buffer == 0u || stride <= 0)
+		return false;
+
+	glVertexArrayVertexBuffer(m_id, binding_index, buffer, offset, stride);
+	return true;
+}
+
+bool VertexArray::configure_float_attribute(GLuint attribute_index,
+                                            GLint component_count,
+                                            GLenum component_type,
+                                            GLboolean normalized,
+                                            GLuint relative_offset,
+                                            GLuint binding_index) const noexcept
+{
+	if (m_id == 0u || component_count <= 0)
+		return false;
+
+	glEnableVertexArrayAttrib(m_id, attribute_index);
+	glVertexArrayAttribFormat(m_id,
+	                          attribute_index,
+	                          component_count,
+	                          component_type,
+	                          normalized,
+	                          relative_offset);
+	glVertexArrayAttribBinding(m_id, attribute_index, binding_index);
+	return true;
+}
+
 void VertexArray::reset() noexcept
 {
 	if (m_id == 0u)
