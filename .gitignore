@@ -22,4 +22,7 @@ log.txt
 *.sdf
 *.suo
 *.vcxproj.user
+
+# Local Python environment and diagnostic generator output
 .venv-glad/
+glad-test/
