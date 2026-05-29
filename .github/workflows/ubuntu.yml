@@ -35,14 +35,26 @@ jobs:
     - name: Install Ubuntu Packages
       run: |
         sudo apt-get update
-        sudo apt-get install -y ninja-build python3-pip libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
-        python3 -m pip install --user "Jinja2>=2.7,<4.0"
+        sudo apt-get install -y ninja-build python3-venv libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+        python3 -m venv "${RUNNER_TEMP}/glad-venv"
+        "${RUNNER_TEMP}/glad-venv/bin/python" -m pip install --upgrade pip
+        "${RUNNER_TEMP}/glad-venv/bin/python" -m pip install "Jinja2>=2.7,<4.0"
 
     - name: Generate
       env:
         CC: ${{ matrix.compiler.cc }}
         CXX: ${{ matrix.compiler.cxx }}
-      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPython_EXECUTABLE="${RUNNER_TEMP}/glad-venv/bin/python" "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
     - name: Build
-      run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }}
+      run: |
+        set -o pipefail
+        cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} 2>&1 | tee "build-${{ matrix.build_type }}-${{ matrix.compiler.cc }}.log"
+
+    - name: Upload failed build log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ubuntu-${{ matrix.build_type }}-${{ matrix.compiler.cc }}-build-log
+        path: build-${{ matrix.build_type }}-${{ matrix.compiler.cc }}.log
+        if-no-files-found: ignore
