@@ -8,6 +8,7 @@ target_sources (
 		[[OwnershipProbe.hpp]]
 		[[Sampler.hpp]]
 		[[ShaderProgram.hpp]]
+		[[ShaderProgramProbe.hpp]]
 		[[Texture2D.hpp]]
 		[[VertexArray.hpp]]
 	PRIVATE
@@ -19,6 +20,7 @@ target_sources (
 		[[OwnershipProbe.cpp]]
 		[[Sampler.cpp]]
 		[[ShaderProgram.cpp]]
+		[[ShaderProgramProbe.cpp]]
 		[[Texture2D.cpp]]
 		[[VertexArray.cpp]]
 )
@@ -32,4 +34,5 @@ target_link_libraries (
 	PUBLIC
 		sfm_sandbox_options
 		glad_gl_core_46
+		glm::glm
 )
