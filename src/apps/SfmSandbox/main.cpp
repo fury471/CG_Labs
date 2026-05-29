@@ -11,6 +11,7 @@
 #include <chrono>
 #include <clocale>
 #include <cstdlib>
+#include <string>
 
 int main()
 {
