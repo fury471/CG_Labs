@@ -49,7 +49,7 @@ jobs:
     - name: Build
       run: |
         set -o pipefail
-        cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} 2>&1 | tee "build-${{ matrix.build_type }}-${{ matrix.compiler.cc }}.log"
+        cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} -- -k 0 2>&1 | tee "build-${{ matrix.build_type }}-${{ matrix.compiler.cc }}.log"
 
     - name: Upload failed build log
       if: failure()
