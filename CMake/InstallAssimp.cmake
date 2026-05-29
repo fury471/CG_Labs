@@ -19,25 +19,30 @@ if (NOT assimp_FOUND)
 	endif ()
 
 	message (STATUS "Setting up CMake for assimp…")
+	# If a previous configure created a CMake cache in a different path (for example on another machine),
+	# CMake will refuse to reconfigure in-place. Remove any stale cache/build dir so we start clean.
+	if (EXISTS "${assimp_BINARY_DIR}/CMakeCache.txt")
+		message (STATUS "Found existing CMake cache in ${assimp_BINARY_DIR}; removing stale build directory to avoid path mismatch.")
+		file (REMOVE_RECURSE "${assimp_BINARY_DIR}")
+		file (MAKE_DIRECTORY "${assimp_BINARY_DIR}")
+	endif ()
+
 	execute_process (
-		COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}"
-		                         -A "${CMAKE_GENERATOR_PLATFORM}"
-		                         -DASSIMP_NO_EXPORT=ON
-		                         -DASSIMP_BUILD_ASSIMP_TOOLS=OFF
-								 -DASSIMP_BUILD_ZLIB=ON
-		                         -DASSIMP_BUILD_TESTS=OFF
-		                         -DCMAKE_INSTALL_PREFIX=${assimp_INSTALL_DIR}
-		                         -DCMAKE_BUILD_TYPE=Release
-		                         ${assimp_SOURCE_DIR}
+		COMMAND ${CMAKE_COMMAND} -S ${assimp_SOURCE_DIR} -B ${assimp_BINARY_DIR}
+				 -DASSIMP_NO_EXPORT=ON
+				 -DASSIMP_BUILD_ASSIMP_TOOLS=OFF
+				 -DASSIMP_BUILD_ZLIB=ON
+				 -DASSIMP_BUILD_TESTS=OFF
+				 -DCMAKE_INSTALL_PREFIX=${assimp_INSTALL_DIR}
+				 -DCMAKE_BUILD_TYPE=Release
 		OUTPUT_VARIABLE stdout
 		ERROR_VARIABLE stderr
 		RESULT_VARIABLE result
-		WORKING_DIRECTORY ${assimp_BINARY_DIR}
 	)
 	if (result)
 		message (FATAL_ERROR "CMake setup for assimp failed: ${result}\n"
-		                     "Standard output: ${stdout}\n"
-		                     "Error output: ${stderr}")
+							 "Standard output: ${stdout}\n"
+							 "Error output: ${stderr}")
 	endif ()
 
 	message (STATUS "Building and installing assimp…")

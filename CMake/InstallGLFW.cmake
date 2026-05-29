@@ -19,25 +19,36 @@ if (NOT glfw3_FOUND)
 	endif ()
 
 	message (STATUS "Setting up CMake for glfw…")
-	execute_process (
-		COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}"
-		                         -A "${CMAKE_GENERATOR_PLATFORM}"
-		                         -DGLFW_BUILD_DOCS=OFF
-		                         -DGLFW_BUILD_TESTS=OFF
-		                         -DGLFW_BUILD_EXAMPLES=OFF
-		                         -DCMAKE_INSTALL_PREFIX=${glfw_INSTALL_DIR}
-		                         -DCMAKE_BUILD_TYPE=Release
-		                         ${glfw_SOURCE_DIR}
-		OUTPUT_VARIABLE stdout
-		ERROR_VARIABLE stderr
-		RESULT_VARIABLE result
-		WORKING_DIRECTORY ${glfw_BINARY_DIR}
-	)
-	if (result)
-		message (FATAL_ERROR "CMake setup for glfw failed: ${result}\n"
-		                     "Standard output: ${stdout}\n"
-		                     "Error output: ${stderr}")
-	endif ()
+
+		# Build cmake command arguments conditionally to avoid passing empty values
+		set(cmake_args)
+		if (CMAKE_GENERATOR)
+			list(APPEND cmake_args -G "${CMAKE_GENERATOR}")
+			if (CMAKE_GENERATOR_PLATFORM)
+				list(APPEND cmake_args -A "${CMAKE_GENERATOR_PLATFORM}")
+			endif ()
+		endif ()
+		list(APPEND cmake_args
+			-DGLFW_BUILD_DOCS=OFF
+			-DGLFW_BUILD_TESTS=OFF
+			-DGLFW_BUILD_EXAMPLES=OFF
+			-DCMAKE_INSTALL_PREFIX=${glfw_INSTALL_DIR}
+			-DCMAKE_BUILD_TYPE=Release
+			${glfw_SOURCE_DIR}
+		)
+
+		execute_process (
+			COMMAND ${CMAKE_COMMAND} ${cmake_args}
+			OUTPUT_VARIABLE stdout
+			ERROR_VARIABLE stderr
+			RESULT_VARIABLE result
+			WORKING_DIRECTORY ${glfw_BINARY_DIR}
+		)
+		if (result)
+			message (FATAL_ERROR "CMake setup for glfw failed: ${result}\n"
+								 "Standard output: ${stdout}\n"
+								 "Error output: ${stderr}")
+		endif ()
 
 	message (STATUS "Building and installing glfw…")
 	execute_process (

@@ -83,12 +83,28 @@ edaf80::Assignment3::run()
 	if (texcoord_shader == 0u)
 		LogError("Failed to load texcoord shader");
 
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Skybox",
+											{ { ShaderType::vertex, "EDAF80/skybox.vert" },
+											  { ShaderType::fragment, "EDAF80/skybox.frag" } },
+											skybox_shader);
+	if (skybox_shader == 0u)
+		LogError("Failed to load skybox shader");
+
+	GLuint phong_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Phong",
+		{ { ShaderType::vertex, "EDAF80/phong.vert" },
+		  { ShaderType::fragment, "EDAF80/phong.frag" } },
+		phong_shader);
+	if (phong_shader == 0u)
+		LogError("Failed to load phong shader");
+
 	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
 	auto const set_uniforms = [&light_position](GLuint program){
 		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
 	};
 
-	bool use_normal_mapping = false;
+	bool use_normal_mapping = true;
 	auto camera_position = mCamera.mWorld.GetTranslation();
 	auto const phong_set_uniforms = [&use_normal_mapping,&light_position,&camera_position](GLuint program){
 		glUniform1i(glGetUniformLocation(program, "use_normal_mapping"), use_normal_mapping ? 1 : 0);
@@ -106,9 +122,48 @@ edaf80::Assignment3::run()
 		return;
 	}
 
+
 	Node skybox;
 	skybox.set_geometry(skybox_shape);
-	skybox.set_program(&fallback_shader, set_uniforms);
+	//skybox.set_program(&fallback_shader, set_uniforms);
+	skybox.set_program(&skybox_shader, set_uniforms);
+
+
+	// load the cubemap:
+	GLuint cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("cubemaps/NissiBeach2/posx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posz.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negz.jpg"));
+
+	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+
+	bool has_reflection = true;
+	bool has_refraction = true;
+	GLuint water_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Water",
+		{ { ShaderType::vertex, "EDAF80/water_sphere.vert" },
+			{ ShaderType::fragment, "EDAF80/water_sphere.frag" } },
+		water_shader);
+	if (water_shader == 0u)
+		LogError("Failed to load skybox shader");
+
+	float elapsed_time_s = 0.0f;
+
+	auto const water_set_uniforms = [&light_position, &elapsed_time_s, &camera_position, &use_normal_mapping, &has_reflection, &has_refraction](GLuint program) {
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		glUniform1f(glGetUniformLocation(program, "elapsed_time_s"), elapsed_time_s);
+		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
+		glUniform1i(glGetUniformLocation(program, "use_normal_mapping"), use_normal_mapping ? 1 : 0);
+		glUniform1i(glGetUniformLocation(program, "has_reflection"), has_reflection ? 1 : 0);
+		glUniform1i(glGetUniformLocation(program, "has_refraction"), has_refraction ? 1 : 0);
+		};
+
+
+
+
 
 	auto demo_shape = parametric_shapes::createSphere(1.5f, 40u, 40u);
 	if (demo_shape.vao == 0u) {
@@ -125,7 +180,28 @@ edaf80::Assignment3::run()
 	Node demo_sphere;
 	demo_sphere.set_geometry(demo_shape);
 	demo_sphere.set_material_constants(demo_material);
-	demo_sphere.set_program(&fallback_shader, phong_set_uniforms);
+	demo_sphere.set_program(&phong_shader, phong_set_uniforms);
+	//demo_sphere.set_program(&water_shader, water_set_uniforms);
+
+	GLuint tex_diffuse = bonobo::loadTexture2D(config::resources_path("textures/cobblestone_floor_08_diff_2k.jpg"));
+	GLuint tex_spec = bonobo::loadTexture2D(config::resources_path("textures/cobblestone_floor_08_rough_2k.jpg"));
+	GLuint tex_normal = bonobo::loadTexture2D(config::resources_path("textures/cobblestone_floor_08_nor_2k.jpg"));
+
+	if (tex_diffuse == 0u) {
+		LogError("map failed to load!");
+	}
+
+	GLuint water_normal = bonobo::loadTexture2D(config::resources_path("textures/waves.png"));
+	if (water_normal == 0u) {
+		LogError("water_normal failed to load!");
+	}
+	demo_sphere.add_texture("diffuse_map", tex_diffuse, GL_TEXTURE_2D);
+	demo_sphere.add_texture("specular_map", tex_spec, GL_TEXTURE_2D);
+	demo_sphere.add_texture("normal_map", tex_normal, GL_TEXTURE_2D);
+	demo_sphere.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+	//demo_sphere.add_texture("normal_map", water_normal, GL_TEXTURE_2D);
+
+
 
 
 	glClearDepthf(1.0f);
@@ -152,6 +228,8 @@ edaf80::Assignment3::run()
 		auto const nowTime = std::chrono::high_resolution_clock::now();
 		auto const deltaTimeUs = std::chrono::duration_cast<std::chrono::microseconds>(nowTime - lastTime);
 		lastTime = nowTime;
+		//temp
+		elapsed_time_s += std::chrono::duration<float>(deltaTimeUs).count();
 
 		auto& io = ImGui::GetIO();
 		inputHandler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
@@ -198,8 +276,11 @@ edaf80::Assignment3::run()
 		glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 		bonobo::changePolygonMode(polygon_mode);
 
-
+		skybox.get_transform().SetTranslate(camera_position);
+		glDisable(GL_DEPTH_TEST);
 		skybox.render(mCamera.GetWorldToClipMatrix());
+		//glClear(GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
 		demo_sphere.render(mCamera.GetWorldToClipMatrix());
 
 

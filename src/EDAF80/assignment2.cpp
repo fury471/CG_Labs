@@ -43,11 +43,19 @@ void
 edaf80::Assignment2::run()
 {
 	// Load the sphere geometry
-	auto const shape = parametric_shapes::createCircleRing(2.0f, 0.75f, 40u, 4u);
+	//auto const shape = parametric_shapes::createCircleRing(2.0f, 0.75f, 40u, 4u);
+	//auto const shape = parametric_shapes::createQuad(0.25f, 0.15f);
+	auto const shape = parametric_shapes::createSphere(0.15f, 10u, 10u);
+	//auto const shape = parametric_shapes::createTorus(0.7f, 0.3f, 10u, 10u);
 	if (shape.vao == 0u)
 		return;
 
 	// Set up the camera
+	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 0.0f, 0.5f));
+	// Check if there is a black hole
+	//mCamera.mWorld.SetTranslate(glm::vec3(0.0f, -0.5f, 0.0f));
+	//mCamera.mWorld.SetRotateX(glm::half_pi<float>());
+	// Ex4
 	mCamera.mWorld.SetTranslate(glm::vec3(0.0f, 1.0f, 9.0f));
 	mCamera.mMouseSensitivity = glm::vec2(0.003f);
 	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
@@ -115,11 +123,11 @@ edaf80::Assignment2::run()
 
 	// Set whether the default interpolation algorithm should be the linear one;
 	// it can always be changed at runtime through the "Scene Controls" window.
-	bool use_linear = true;
+	bool use_linear = false;
 
 	// Set whether to interpolate the position of an object or not; it can
 	// always be changed at runtime through the "Scene Controls" window.
-	bool interpolate = true;
+	bool interpolate = false;
 
 	// Set whether to show the control points or not; it can always be changed
 	// at runtime through the "Scene Controls" window.
@@ -216,16 +224,44 @@ edaf80::Assignment2::run()
 		if (interpolate) {
 			//! \todo Interpolate the movement of a shape between various
 			//!        control points.
-			if (use_linear) {
-				//! \todo Compute the interpolated position
-				//!       using the linear interpolation.
+			const float speed_per_sec = 0.5f;
+			const size_t point_count = static_cast<size_t>(control_point_locations.size());
+			const float progress = elapsed_time_s * speed_per_sec;
+			const float pos_between_points = progress - std::floor(progress);
+			if (point_count >= 2u) {
+				const size_t cur_seg = static_cast<size_t>(std::floor(progress)) % (point_count);
+				glm::vec3 pos;
+
+				if (use_linear) {
+					//! \todo Compute the interpolated position
+					//!       using the linear interpolation.
+					pos = interpolation::evalLERP(control_point_locations[cur_seg%(point_count)],
+												  control_point_locations[(cur_seg + 1u)%(point_count)],
+												  pos_between_points);
+				}
+				else {
+					//! \todo Compute the interpolated position
+					//!       using the Catmull-Rom interpolation;
+					//!       use the `catmull_rom_tension`
+					//!       variable as your tension argument.
+					const size_t i0 = (cur_seg + point_count - 1) % point_count;
+					const size_t i1 = (cur_seg + 0) % point_count;
+					const size_t i2 = (cur_seg + 1) % point_count;
+					const size_t i3 = (cur_seg + 2) % point_count;
+					pos = interpolation::evalCatmullRom(
+						control_point_locations[i0],
+						control_point_locations[i1],
+						control_point_locations[i2],
+						control_point_locations[i3],
+						catmull_rom_tension,
+						pos_between_points);
+				}
+
+				circle_rings.get_transform().SetTranslate(pos);
 			}
-			else {
-				//! \todo Compute the interpolated position
-				//!       using the Catmull-Rom interpolation;
-				//!       use the `catmull_rom_tension`
-				//!       variable as your tension argument.
-			}
+
+
+
 		}
 
 		circle_rings.render(mCamera.GetWorldToClipMatrix());

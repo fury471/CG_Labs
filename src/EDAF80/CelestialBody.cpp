@@ -26,13 +26,36 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// milliseconds, the following would have been used:
 	// auto const elapsed_time_ms = std::chrono::duration<float, std::milli>(elapsed_time).count();
 
-	_body.spin.rotation_angle = -glm::half_pi<float>() / 2.0f;
+	_body.spin.rotation_angle += _body.spin.speed * elapsed_time_s;
+	_body.orbit.rotation_angle += _body.orbit.speed * elapsed_time_s;
+	// Compute the scaling matrix S
+	//set_scale(glm::vec3(1.0f, 0.2f, 0.2f));
+	glm::mat4 S = glm::scale(glm::mat4(1.0f), _body.scale);
+	// Compute the rotation matrix of spin
+	glm::mat4 R1_s = glm::rotate(glm::mat4(1.0f), _body.spin.rotation_angle, glm::vec3(0.0f,1.0f,0.0f));
+	glm::mat4 R2_s = glm::rotate(glm::mat4(1.0f), _body.spin.axial_tilt, glm::vec3(0.0f, 0.0f, 1.0f));
+	// Compute the rotation matrix of orbit
+	glm::mat4 T_o = glm::translate(glm::mat4(1.0f), glm::vec3(_body.orbit.radius, 0.0f, 0.0f));
+	glm::mat4 R1_o = glm::rotate(glm::mat4(1.0f), _body.orbit.rotation_angle, glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::mat4 R2_o = glm::rotate(glm::mat4(1.0f), _body.orbit.inclination, glm::vec3(0.0f, 0.0f, 1.0f));
+
+	// try to solve ex8
+	glm::vec4 orbit_pos = (R2_o * R1_o) * glm::vec4(_body.orbit.radius, 0.0f, 0.0f, 1.0f);
+	glm::mat4 R_T = glm::translate(glm::mat4(1.0f), glm::vec3(orbit_pos));
 
 	glm::mat4 world = parent_transform;
-
+	glm::mat4 child_tranform = world * R_T * R2_s;
+	world = child_tranform * R1_s * S;
+	
 	if (show_basis)
 	{
 		bonobo::renderBasis(1.0f, 2.0f, view_projection, world);
+	}
+	if (_ring.is_set)
+	{
+		glm::mat4 ring_world = child_tranform * glm::rotate(glm::mat4(1.0f), glm::half_pi<float>(), glm::vec3(1.0f, 0.0f, 0.0f))
+			* glm::scale(glm::mat4(1.0f), glm::vec3(_ring.scale, 1.0f));
+		_ring.node.render(view_projection, ring_world);
 	}
 
 	// Note: The second argument of `node::render()` is supposed to be the
@@ -43,7 +66,8 @@ glm::mat4 CelestialBody::render(std::chrono::microseconds elapsed_time,
 	// world matrix.
 	_body.node.render(view_projection, world);
 
-	return parent_transform;
+	//return parent_transform;
+	return child_tranform;
 }
 
 void CelestialBody::add_child(CelestialBody* child)

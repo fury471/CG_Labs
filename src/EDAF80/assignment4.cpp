@@ -42,8 +42,8 @@ edaf80::Assignment4::run()
 	// Set up the camera
 	mCamera.mWorld.SetTranslate(glm::vec3(-40.0f, 14.0f, 6.0f));
 	mCamera.mWorld.LookAt(glm::vec3(0.0f));
-	mCamera.mMouseSensitivity = glm::vec2(0.003f);
-	mCamera.mMovementSpeed = glm::vec3(3.0f); // 3 m/s => 10.8 km/h
+	mCamera.mMouseSensitivity = glm::vec2(0.004f);
+	mCamera.mMovementSpeed = glm::vec3(60.0f); // 3 m/s => 10.8 km/h
 	auto camera_position = mCamera.mWorld.GetTranslation();
 
 	// Create the shader programs
@@ -62,12 +62,84 @@ edaf80::Assignment4::run()
 	// Todo: Insert the creation of other shader programs.
 	//       (Check how it was done in assignment 3.)
 	//
+	GLuint skybox_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Skybox",
+											{ { ShaderType::vertex, "EDAF80/skybox.vert" },
+												{ ShaderType::fragment, "EDAF80/skybox.frag" } },
+											skybox_shader);
+	if (skybox_shader == 0u)
+		LogError("Failed to load skybox shader");
+
+	GLuint water_shader = 0u;
+	program_manager.CreateAndRegisterProgram("Water",
+		{ { ShaderType::vertex, "EDAF80/water.vert" },
+			{ ShaderType::fragment, "EDAF80/water.frag" } },
+		water_shader);
+	if (water_shader == 0u)
+		LogError("Failed to load skybox shader");
 
 	float elapsed_time_s = 0.0f;
+
+	auto light_position = glm::vec3(-2.0f, 4.0f, 2.0f);
+	auto const set_uniforms = [&light_position](GLuint program) {
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		};
 
 	//
 	// Todo: Load your geometry
 	//
+	auto skybox_shape = parametric_shapes::createSphere(20.0f, 100u, 100u);
+	if (skybox_shape.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the skybox");
+		return;
+	}
+
+	Node skybox;
+	skybox.set_geometry(skybox_shape);
+	skybox.set_program(&skybox_shader, set_uniforms);
+
+	// load the cubemap:
+	GLuint cubemap = bonobo::loadTextureCubeMap(
+		config::resources_path("cubemaps/NissiBeach2/posx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negx.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negy.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/posz.jpg"),
+		config::resources_path("cubemaps/NissiBeach2/negz.jpg"));
+
+	skybox.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
+
+	auto water_surface = parametric_shapes::createQuad(100.0f,100.0f, 1000u, 1000u);
+	if (water_surface.vao == 0u) {
+		LogError("Failed to retrieve the mesh for the water_surface");
+		return;
+	}
+
+	bool use_normal_mapping = false;
+	bool has_reflection = false;
+	bool has_refraction = false;
+
+
+	auto const water_set_uniforms = [&light_position,&elapsed_time_s,&camera_position,&use_normal_mapping,&has_reflection,&has_refraction](GLuint program) {
+		glUniform3fv(glGetUniformLocation(program, "light_position"), 1, glm::value_ptr(light_position));
+		glUniform1f(glGetUniformLocation(program, "elapsed_time_s"), elapsed_time_s);
+		glUniform3fv(glGetUniformLocation(program, "camera_position"), 1, glm::value_ptr(camera_position));
+		glUniform1i(glGetUniformLocation(program, "use_normal_mapping"), use_normal_mapping ? 1 : 0);
+		glUniform1i(glGetUniformLocation(program, "has_reflection"), has_reflection ? 1 : 0);
+		glUniform1i(glGetUniformLocation(program, "has_refraction"), has_refraction ? 1 : 0);
+		};
+
+	Node water;
+	water.set_geometry(water_surface);
+	water.set_program(&water_shader, water_set_uniforms);
+
+	GLuint water_normal = bonobo::loadTexture2D(config::resources_path("textures/waves.png"));
+	if (water_normal == 0u) {
+		LogError("water_normal failed to load!");
+	}
+
+	water.add_texture("normal_map", water_normal, GL_TEXTURE_2D);
+	water.add_texture("cubemap", cubemap, GL_TEXTURE_CUBE_MAP);
 
 	glClearDepthf(1.0f);
 	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
@@ -150,6 +222,12 @@ edaf80::Assignment4::run()
 			//
 			// Todo: Render all your geometry here.
 			//
+			skybox.get_transform().SetTranslate(camera_position);
+			glDisable(GL_DEPTH_TEST);
+			skybox.render(mCamera.GetWorldToClipMatrix());
+			glEnable(GL_DEPTH_TEST);
+			water.render(mCamera.GetWorldToClipMatrix());
+
 		}
 
 
@@ -165,6 +243,10 @@ edaf80::Assignment4::run()
 		if (opened) {
 			ImGui::Checkbox("Pause animation", &pause_animation);
 			ImGui::Checkbox("Use orbit camera", &use_orbit_camera);
+			ImGui::Checkbox("Reflection", &has_reflection);
+			ImGui::Checkbox("Normal map", &use_normal_mapping);
+			ImGui::Checkbox("Refraction", &has_refraction);
+
 			ImGui::Separator();
 			auto const cull_mode_changed = bonobo::uiSelectCullMode("Cull mode", cull_mode);
 			if (cull_mode_changed) {
