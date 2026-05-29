@@ -11,8 +11,12 @@ CG_Labs contains the source code for the various Computer Graphics courses
 taught at `Lund University`_ (EDAF80_ and EDAN35_). All assignments of EDAF80
 are available, as well as the second assignment of EDAN35.
 
-The public repository is found at https://github.com/LUGGPublic/CG_Labs, and
-its documentation at https://luggpublic.github.io/CG_Labs.
+The public upstream repository is found at https://github.com/LUGGPublic/CG_Labs,
+and its documentation at https://luggpublic.github.io/CG_Labs.
+
+This ``vs2026`` branch adapts the Windows development setup to use the
+Visual Studio 2026 MSVC toolchain with CMake and the Ninja generator. See
+BUILD.rst_ for the branch-specific configuration and build instructions.
 
 Dependencies
 ============
@@ -26,22 +30,24 @@ CG_Labs uses the following dependencies:
 * GLAD_ (0.1.33): to load OpenGL extensions;
 * GLFW_ (>= 3.2.0): to create a window and an OpenGL context, as well as handle inputs;
 * GLM_ (0.9.9.5): for linear algebra operations;
+* Ninja_: to build this branch with the Visual Studio 2026 toolchain on Windows;
 * stb_: to load image files;
 * tinyfiledialogs_ (>= 3.1.2): to display dialogue windows to the user, in case
   of errors for example.
 
 The project contains the needed files for GLAD and Dear ImGui, and it will
 download assimp, GLM, GLFW, stb and tinyfiledialogs if they are not found on
-your computer, so you only need to make sure that CMake and Git are installed
-on your computer.
+your computer. For the documented Windows setup of this branch, make sure that
+CMake, Git, Ninja and Visual Studio 2026 with C++ development support are
+available on your computer.
 
 An OpenGL 4.1 context is created by the project; if your hardware or its driver
 does not support OpenGL 4.1, you should use the `OpenGL 3.3`_ branch instead
 which will create a 3.3 context.
 
 C++14 features are used by this project, so you will need a C++14-capable
-compiler; if you are using Visual Studio, that means Visual Studio 2015 or
-later.
+compiler. The Windows instructions for this branch use the MSVC compiler
+provided by Visual Studio 2026.
 
 The different resources used in the assignments, textures, object files, can
 be found in `this ZIP file`_, which should be automatically retrieved by CMake.
@@ -49,8 +55,9 @@ be found in `this ZIP file`_, which should be automatically retrieved by CMake.
 Configuring and building
 ========================
 
-All the informations regarding the software configuration, how to set it up, and
-how to build the framework, can be found in BUILD.rst_.
+All the information regarding the software configuration, how to set it up, and
+how to build the framework can be found in BUILD.rst_. The Windows instructions
+there describe the Visual Studio 2026 + Ninja setup used by this branch.
 
 Miscellaneous
 =============
@@ -75,6 +82,7 @@ Licence
 .. _GLM: http://glm.g-truc.net/
 .. _Dear ImGui: https://github.com/ocornut/imgui
 .. _assimp: https://github.com/assimp/assimp
+.. _Ninja: https://ninja-build.org/
 .. _stb: https://github.com/nothings/stb
 .. _tinyfiledialogs: https://sourceforge.net/projects/tinyfiledialogs/
 .. _cmake-generators(7): https://cmake.org/cmake/help/latest/manual/cmake-generators.7.html
