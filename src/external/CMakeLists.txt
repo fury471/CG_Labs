@@ -18,6 +18,12 @@ target_sources (
 		"${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
 )
 
+target_compile_definitions (
+	external_libs
+	PRIVATE
+		GLFW_INCLUDE_NONE
+)
+
 target_include_directories (
 	external_libs
 	SYSTEM
