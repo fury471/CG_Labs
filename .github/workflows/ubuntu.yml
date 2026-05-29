@@ -1,6 +1,7 @@
 name: Ubuntu
 
 on:
+  workflow_dispatch:
   push:
     paths-ignore:
       - '*.rst'
@@ -40,7 +41,7 @@ jobs:
       env:
         CC: ${{ matrix.compiler.cc }}
         CXX: ${{ matrix.compiler.cxx }}
-      run: cmake -S${{ github.workspace }} -B${{ github.workspace }}/build -G"Ninja" -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
     - name: Build
-      run: cmake --build ${{ github.workspace }}/build --config ${{ matrix.build_type }}
+      run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }}
