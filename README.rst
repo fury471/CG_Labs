@@ -1,11 +1,11 @@
 |UbuntuBadge| |MacOSBadge| |WindowsBadge|
 
-.. |UbuntuBadge| image:: https://github.com/LUGGPublic/CG_Labs/actions/workflows/ubuntu.yml/badge.svg
-   :target: https://github.com/LUGGPublic/CG_Labs/actions/workflows/ubuntu.yml
-.. |MacOSBadge| image:: https://github.com/LUGGPublic/CG_Labs/actions/workflows/macos.yml/badge.svg
-   :target: https://github.com/LUGGPublic/CG_Labs/actions/workflows/macos.yml
-.. |WindowsBadge| image:: https://github.com/LUGGPublic/CG_Labs/actions/workflows/windows.yml/badge.svg
-   :target: https://github.com/LUGGPublic/CG_Labs/actions/workflows/windows.yml
+.. |UbuntuBadge| image:: https://github.com/fury471/CG_Labs/actions/workflows/ubuntu.yml/badge.svg?branch=vs2026
+   :target: https://github.com/fury471/CG_Labs/actions/workflows/ubuntu.yml?query=branch%3Avs2026
+.. |MacOSBadge| image:: https://github.com/fury471/CG_Labs/actions/workflows/macos.yml/badge.svg?branch=vs2026
+   :target: https://github.com/fury471/CG_Labs/actions/workflows/macos.yml?query=branch%3Avs2026
+.. |WindowsBadge| image:: https://github.com/fury471/CG_Labs/actions/workflows/windows.yml/badge.svg?branch=vs2026
+   :target: https://github.com/fury471/CG_Labs/actions/workflows/windows.yml?query=branch%3Avs2026
 
 CG_Labs contains the source code for the various Computer Graphics courses
 taught at `Lund University`_ (EDAF80_ and EDAN35_). All assignments of EDAF80
