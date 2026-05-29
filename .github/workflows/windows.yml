@@ -33,6 +33,7 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1.9.0
 
     - name: Generate
+      # Preserve compatibility with older fetched dependency CMake scripts.
       run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
     - name: Build
