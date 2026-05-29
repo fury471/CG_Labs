@@ -3,6 +3,7 @@
 #include "sandbox/core/FrameClock.hpp"
 #include "sandbox/gfx/ClearPass.hpp"
 #include "sandbox/gfx/OwnershipProbe.hpp"
+#include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
 
 #include <imgui.h>
@@ -48,6 +49,11 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
+	// Milestone 4 introduces the first real draw path. The application still owns
+	// frame lifetime and UI, while Renderer owns pipeline setup and draw calls.
+	sfm::gfx::Renderer renderer;
+	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise();
+
 	bool show_gui = true;
 	bool show_logs = false;
 
@@ -75,6 +81,7 @@ int main()
 
 		window_manager.NewImGuiFrame();
 		clear_pass.render(framebuffer_width, framebuffer_height);
+		renderer.render();
 
 		if (ImGui::Begin("Sandbox status")) {
 			ImGui::TextUnformatted("SfM Visualization Sandbox");
@@ -84,7 +91,12 @@ int main()
 			ImGui::Text("FPS: %.1f", frame_timing.frames_per_second);
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 3: ShaderProgram interface and cached bindings");
+			ImGui::TextUnformatted("Milestone 4: Central renderer and first geometry");
+			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
+			for (std::string const& message : renderer_build.messages)
+				ImGui::BulletText("%s", message.c_str());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Milestone 3 regression: ShaderProgram cache");
 			ImGui::Text("Shader probe: %s", shader_program_probe.passed ? "passed" : "failed");
 			for (std::string const& message : shader_program_probe.messages)
 				ImGui::BulletText("%s", message.c_str());
