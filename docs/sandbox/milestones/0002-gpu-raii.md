@@ -1,7 +1,7 @@
 # Milestone 2 Record: Move-only RAII GPU Resource Layer
 
 - **Milestone:** 2
-- **Status:** Implementation ready for local validation
+- **Status:** SfmSandbox ownership validation passed; legacy regression launch confirmation pending
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m2-gpu-raii`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -89,9 +89,16 @@ Ownership probe: passed/failed
 | Debug labels exist in development runs | Implemented through `DebugLabel` helper and labelled constructors |
 | Existing assignment applications remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+Local evidence received on 2026-05-30:
+
+- screenshot of `SfmSandbox` running with OpenGL 4.6, debug context enabled;
+- `Sandbox status` panel visible;
+- `Ownership probe: passed` visible;
+- every resource type reports both compile-time move-only contract and create/move/reset invariants as passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -107,13 +114,13 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | Panel shows `Milestone 2: GPU RAII ownership` | Pending |
-| `SfmSandbox` | Panel shows `Ownership probe: passed` | Pending |
-| `SfmSandbox` | Probe messages list every resource type as passed | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending confirmation |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending confirmation |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 2: GPU RAII ownership` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Ownership probe: passed` | Passed — screenshot confirmed |
+| `SfmSandbox` | Probe messages list every resource type as passed | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Pending confirmation |
 
 ## Known limitations at this checkpoint
 
@@ -124,4 +131,4 @@ Manual launch checklist:
 
 ## Completion gate
 
-Milestone 2 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+Milestone 2 is complete only after the remaining regression and control checks are confirmed and this document is updated from pending to complete.
