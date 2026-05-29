@@ -9,7 +9,7 @@ Table of Content
 
 2. `Getting started`_
 
-   a. `Visual Studio 2019 (or 2017): using the built-in CMake support`_
+   a. `Visual Studio 2026 on Windows: using Ninja`_
    b. `Using CMake for other setups`_
 
 
@@ -17,37 +17,55 @@ Setting up the software stack
 =============================
 
 .. note::
-   If you are using the university workstations in *Uranus* or *Elgkalv*, you
-   can skip to `Visual Studio 2019 (or 2017)`_ as those computers already come
-   with Visual Studio 2019 and Git installed.
+   The Windows instructions in this ``vs2026`` branch use Visual Studio 2026
+   as the MSVC toolchain provider and Ninja as the CMake generator. Older build
+   directories generated using Visual Studio 2019/2022 or another generator
+   should not be reused.
 
 
 On Windows
 ----------
 
-We recommend using Microsoft’s `Visual Studio`_ 2022; the *Community* edition
-is free to download and is meant for students (among others). When installing
-it, make sure to check the *Desktop development with C++* workload (in the
-*Workloads* tab, under the *Desktop & Mobile* group) and to at least have
-enabled the individual components found in the figure below.
+This branch is configured for Microsoft’s `Visual Studio`_ 2026. When
+installing Visual Studio, make sure to check the *Desktop development with C++*
+workload (in the *Workloads* tab, under the *Desktop & Mobile* group) and to
+have the following individual components enabled:
 
-You will also need to install Git_; you can leave all options to their default
+* the current MSVC C++ x64/x86 build tools for Visual Studio 2026;
+* a Windows SDK;
+* C++ CMake tools for Windows;
+* Ninja, either provided by the Visual Studio CMake tooling or otherwise
+  available in the developer terminal.
+
+You will also need to install Git_; you can leave all options at their default
 values during the installation.
 
-In case you decided not to use Visual Studio 2019 (nor 2017), you will
-additionally need to install CMake_.
+The instructions below use **Developer PowerShell for VS 2026**, which makes
+the MSVC compiler available to CMake while Ninja supplies the actual build
+backend. Before configuring the project, verify the required commands:
+
+.. code-block:: powershell
+
+   where.exe cl
+   where.exe cmake
+   where.exe ninja
+   where.exe git
+
+   cl
+   cmake --version
+   ninja --version
+   git --version
+
+All four tools must be available from the same developer terminal session.
 
 .. figure:: images/VS2019_Components.jpg
-   :alt: Select the “Desktop development with C++” workflow, and then ensure
-         that you have the following individual components selected: “MSVC vXXX
-         - VS XXXX C++ x64/x86 build tools” (the Xs should be digits, for
-           example “v142 - VS 2019” would be the current one, but if using
-           Visual Studio 2022 it might be “v143 - VS 2022”), “Windows XX SDK”
-           (again, the Xs should be digits, like “10”), and “C++ CMake tools
-           for Windows”.
+   :alt: Select the Desktop development with C++ workload and ensure that an
+         MSVC compiler toolset, Windows SDK, and CMake tools for Windows are
+         enabled. The displayed screenshot is from an older Visual Studio
+         version, but the corresponding component categories remain relevant.
 
-   Excerpt from the component selection screen of Visual Studio 2019; the
-   required components have their checkbox ticked.
+   Historical component-selection example; choose the corresponding Visual
+   Studio 2026 components in the current installer.
 
 
 On macOS
@@ -80,89 +98,142 @@ Getting started
    folder containing among others this file, “README.rst”, the “src/” and
    “shaders/” folder), unless specified otherwise.
 
-We will present two different approaches for setting up the assignment code:
-you only need to follow one of them. If you are using Visual Studio 2019 (or
-2017), both approaches are valid but the first one is recommended.
+We present two different approaches for setting up the assignment code. On
+Windows, follow the Visual Studio 2026 + Ninja instructions below. The general
+CMake section remains applicable for other platforms and toolchains.
 
 
-Visual Studio 2019 (or 2017): using the built-in CMake support
---------------------------------------------------------------
+Visual Studio 2026 on Windows: using Ninja
+------------------------------------------
 
-Here is a quick overview of the different steps to be performed:
+Here is the recommended workflow for this ``vs2026`` branch:
 
-1. **(Ignore if you are using your own computer)** Create a directory
-   called “Program” under your home folder (see the image below). You need to
-   use the path to that folder in step 3, in order to be able to compile and
-   run the assignments on the lab computers.
+1. Clone this fork and check out the ``vs2026`` branch:
 
-   .. figure:: images/GetUserFolder.jpg
-      :alt: In the path field of “File Explorer”, click on the arrow symbol found
-            between an icon and the path. This will present you with a selection
-            of different locations, one of which is your home folder, most likely
-            named after you.
+   .. code-block:: powershell
 
-      How to access your home folder.
+      git clone --branch vs2026 https://github.com/fury471/CG_Labs.git
+      cd CG_Labs
 
-2. Open Visual Studio 2019 and click on the “Clone or check out code” from the
-   “Get started” window, or via the menu “File > Clone Repository…”.
+   If you already cloned the repository, instead run:
 
-3. Enter the URL of this GitHub repository,
-   https://github.com/LUGGPublic/CG_Labs, as well as the folder path you
-   created in step 1 (or the folder of your choice if using your own computer).
+   .. code-block:: powershell
 
-4. Wait until you see the message “CMake generation finished.” in the “Output”
-   tab of the bottom panel. At that point, all the dependencies have been
-   downloaded and compiled, and you are ready to build and work on the
-   assignments.
+      git fetch origin
+      git switch vs2026
 
-5. Select which assignment should be run when you press *F5*, by choosing the
-   “src\\EDAF80\\EDAF80_Assignment1.exe” option (see the figure below).
-   
-   .. figure:: images/VS2019_SelectTarget.jpg
-      :alt: Use the dropdown feature of the field prefixed by a green triangle in
-            the toolbar, to get a slection of targets to run.
+2. Open **Developer PowerShell for VS 2026** in the repository root. Do not use
+   a terminal session in which ``cl.exe`` or ``ninja.exe`` cannot be found.
 
-      Select which assignment you would like to run; make sure you do not select
-      the ones that say “(Install)” like the one above or below the entry pointed
-      by the red arrow.
+3. If you have already configured this repository using Visual Studio 2019,
+   Visual Studio 2022, a Visual Studio solution generator, or an unsuccessful
+   CMake run, remove old generated files before configuring again:
 
-6. Build the source code and run the first assignment: you should be greeted by
-   a window looking like the image below.
+   .. code-block:: powershell
 
-   In case you do not get a window or its content looks different, look at the
-   output from the program which you can see in the same “Output” tab as used
-   in step 4, though you should change from the “CMake” output to the “Debug”
-   one; this logs can also be found in “out/<CONFIG>/src/EDAF80/logs.txt”
-   (replace *<CONFIG>* by “x64-Debug” or “x64-Release” depending on the current
-   building configuration you are using in Visual Studio).
+      Remove-Item -Recurse -Force .\build -ErrorAction SilentlyContinue
+
+      Get-ChildItem .\dependencies -Directory -ErrorAction SilentlyContinue |
+          Where-Object { $_.Name -match '(-build|-subbuild)$' } |
+          Remove-Item -Recurse -Force
+
+4. Configure the framework using Ninja. For a debug build, run:
+
+   .. code-block:: powershell
+
+      cmake -S . -B build -G Ninja `
+          -DCMAKE_BUILD_TYPE=Debug `
+          "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+   This branch uses ``-G Ninja`` rather than a Visual Studio solution
+   generator. Ninja is a single-configuration generator, so
+   ``CMAKE_BUILD_TYPE`` must be set when configuring. The policy-version option
+   accommodates older downloaded dependency CMake scripts when they are
+   configured with newer CMake releases.
+
+   For a release build, use a separate output directory:
+
+   .. code-block:: powershell
+
+      cmake -S . -B build-release -G Ninja `
+          -DCMAKE_BUILD_TYPE=Release `
+          "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+
+5. Build the source code. To build all targets in the debug build directory:
+
+   .. code-block:: powershell
+
+      cmake --build build --parallel
+
+   To build a specific assignment only, for example:
+
+   .. code-block:: powershell
+
+      cmake --build build --target EDAF80_Assignment1 --parallel
+      cmake --build build --target EDAN35_Assignment2 --parallel
+
+6. Run an assignment. With the debug build folder used above, for example:
+
+   .. code-block:: powershell
+
+      .\build\src\EDAF80\EDAF80_Assignment1.exe
+      .\build\src\EDAN35\EDAN35_Assignment2.exe
+
+   In case you do not get a window or its content looks different, inspect the
+   program output and the log file found below the corresponding build/course
+   directory, for example ``build/src/EDAF80/logs.txt`` when running an EDAF80
+   assignment from its generated output folder.
 
    .. figure:: images/Assignment1_StartWindow.jpg
       :alt: The Earth rendered on a dark background.
 
       The first assignment running when launched for the first time.
 
+Troubleshooting on Windows
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If CMake reports ``CMake was unable to find a build program corresponding to
+"Ninja"``, check that Ninja is available in the developer terminal:
+
+.. code-block:: powershell
+
+   where.exe ninja
+   ninja --version
+
+If CMake reports that ``CMAKE_CXX_COMPILER`` or ``CMAKE_C_COMPILER`` is not
+set, check that the terminal provides the Visual Studio compiler:
+
+.. code-block:: powershell
+
+   where.exe cl
+   cl
+
+After correcting the toolchain environment, remove the failed ``build``
+directory and configure the project again.
+
 
 Using CMake for other setups
 ----------------------------
 
-Here, you will use CMake directly to generate the project files. We will
-demonstrate how to do it using the CMake GUI, but you can also use CMake from
-the command line to achieve the same results.
+Here, you will use CMake directly to generate the project files. The precise
+generator depends on your platform and installed toolchain.
 
 1. Download, or clone, the framework from the GitHub repository at
-   https://github.com/LUGGPublic/CG_Labs; the resulting folder will be later
-   referred to as “code”, but you are free to use whatever name you want.
+   https://github.com/fury471/CG_Labs; the resulting folder will be later
+   referred to as “code”, but you are free to use whatever name you want. For
+   the Visual Studio 2026 configuration described by this branch, check out
+   ``vs2026``.
 
 2. In the folder containing “code”, create a new folder named “build” that will
    contain all the binaries and object files.
 
-3. Let us generate the project or build files specific to your setup. This can
-   either be done via the command line or via a GUI; both will be presented.
+3. Generate the project or build files specific to your setup. This can either
+   be done via the command line or via a GUI.
 
    **If you are using the command line**, run ``cmake -G <GENERATOR> -S “code”
-   -B <BUILD>`` where “<BUILD>” refers to the build folder create in step 2,
+   -B <BUILD>`` where “<BUILD>” refers to the build folder created in step 2,
    and “<GENERATOR>” is one of the generators supported by CMake, such as
-   “Xcode”, “Unix Makefiles”, “Ninja”; the full list of supported generators
+   “Xcode”, “Unix Makefiles”, or “Ninja”; the full list of supported generators
    can be found at `cmake-generators(7)`_.
 
    **If you prefer to use the GUI**, follow these steps instead:
@@ -170,35 +241,27 @@ the command line to achieve the same results.
    a. Launch the CMake GUI tool, and fill in the paths to the source and binary
       folders.
 
-   b. Now press the “Configure” button (found towards the bottom of the GUI), and
-      select the generator you want to use: for example, “Visual Studio 2019” on
-      Windows, “Xcode” on macOS, “Ninja” or “Unix Makefile” on Linux.
+   b. Now press the “Configure” button (found towards the bottom of the GUI),
+      and select the generator you want to use. For the Windows setup of this
+      branch, select “Ninja” while working from a Visual Studio 2026 developer
+      environment; on macOS, “Xcode” may be used, and on Linux, “Ninja” or
+      “Unix Makefiles” may be used.
 
-   c. Once the configuration is done, CMake variables and their values will appear
-      above the previously mentioned “Configure” button, highlighted in red
-      meaning their value changed since the last configuration. If you wish to
-      change the window resolution, or some other variables, go ahead and do it.
-      Either way, press the “Configure” button once more to remove the
-      highlighting from all variables, and then press the “Generate” button to its
-      right, to generate the project files; you will find them in the “build”
-      folder you specified.
+   c. Once the configuration is done, CMake variables and their values will
+      appear above the previously mentioned “Configure” button, highlighted in
+      red meaning their value changed since the last configuration. If you wish
+      to change the window resolution, or some other variables, go ahead and do
+      it. Either way, press the “Configure” button once more to remove the
+      highlighting from all variables, and then press the “Generate” button to
+      its right, to generate the project files; you will find them in the
+      “build” folder you specified.
 
 4. Build the source code using your IDE, or via the command line by running
    ``cmake --build <BUILD>`` where “<BUILD>” is the path to your build folder.
 
-5. If you are using an IDE like Visual Studio or Xcode, you should change which
-   assignments is started when running the project:
-
-   Visual Studio
-     Right click on the “EDAF80_Assignment1” project in the “Solution Explorer”
-     tab (usually in the left panel) and select the “Select as StartUp Project”
-     menu item.
-
-   Xcode
-     In the top left corner of the centre part of the window, there should be a
-     field saying something like “ALL_BUILD > My Mac”. Click on it to get a
-     dropdown of all the existing targets, and simply click on
-     “EDAF80_Assignment1” from it.
+5. If you use an IDE such as Xcode, change which assignment is started when
+   running the project as appropriate. With the Windows Ninja command-line
+   setup above, run the intended executable from its generated course folder.
 
 6. Run the first assignment: you should be greeted by a window looking like the
    figure below.
