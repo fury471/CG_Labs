@@ -2,6 +2,7 @@
 #include "core/Bonobo.h"
 #include "sandbox/core/FrameClock.hpp"
 #include "sandbox/gfx/ClearPass.hpp"
+#include "sandbox/gfx/OwnershipProbe.hpp"
 
 #include <imgui.h>
 
@@ -33,9 +34,18 @@ int main()
 		return EXIT_FAILURE;
 	}
 
+	// Everything below this point may assume that an OpenGL context is current.
+	// GPU-owning RAII objects must also be destroyed before DestroyWindow() tears
+	// the context down, so keep future long-lived owners inside this lifetime.
 	sfm::core::FrameClock frame_clock;
 	sfm::gfx::ClearPass clear_pass({ 0.035f, 0.055f, 0.090f, 1.0f });
 	clear_pass.initialise();
+
+	// Milestone 2 validation: create every new GPU owner, move it, and reset it
+	// once while the context is alive. The result is shown in the debug UI so the
+	// probe remains visible during manual validation without becoming renderer
+	// logic or a replacement for later automated tests.
+	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -73,10 +83,10 @@ int main()
 			ImGui::Text("FPS: %.1f", frame_timing.frames_per_second);
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 1: application shell");
-			ImGui::BulletText("Platform window and ImGui connected");
-			ImGui::BulletText("Rendering boundary: sandbox/gfx/ClearPass");
-			ImGui::BulletText("Scene and SfM visualization arrive later");
+			ImGui::TextUnformatted("Milestone 2: GPU RAII ownership");
+			ImGui::Text("Ownership probe: %s", ownership_probe.passed ? "passed" : "failed");
+			for (std::string const& message : ownership_probe.messages)
+				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Controls: F2 UI, F3 logs, F11 fullscreen, Esc quit");
 		}
