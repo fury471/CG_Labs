@@ -10,6 +10,16 @@
 
 #include <type_traits>
 
+namespace
+{
+	bool computeShadersAreSupported()
+	{
+		// Compute shaders became core in OpenGL 4.3. Windows and Linux request
+		// a 4.6 context in this branch; macOS intentionally remains on 4.1.
+		return GLAD_GL_VERSION_4_3 != 0;
+	}
+}
+
 ShaderProgramManager::~ShaderProgramManager()
 {
 	for (auto const& i : program_entries) {
@@ -22,10 +32,10 @@ ShaderProgramManager::~ShaderProgramManager()
 
 void ShaderProgramManager::CreateAndRegisterProgram(char const* const program_name, ProgramData const& program_data, GLuint& program)
 {
-	if (!GLAD_GL_ARB_compute_shader) {
+	if (!computeShadersAreSupported()) {
 		for (auto const& i : program_data) {
 			if (i.first == ShaderType::compute) {
-				LogError("Compute shaders aren't exposed on your computer (needed for shader '%s'.", i.second.c_str());
+				LogError("Compute shaders aren't exposed on your computer (needed for shader '%s').", i.second.c_str());
 				return;
 			}
 		}
@@ -39,8 +49,8 @@ void ShaderProgramManager::CreateAndRegisterProgram(char const* const program_na
 
 void ShaderProgramManager::CreateAndRegisterComputeProgram(char const* const program_name, std::string const& filename, GLuint& program)
 {
-	if (!GLAD_GL_ARB_compute_shader) {
-		LogError("Compute shaders aren't exposed on your computer (needed for shader '%s'.", filename.c_str());
+	if (!computeShadersAreSupported()) {
+		LogError("Compute shaders aren't exposed on your computer (needed for shader '%s').", filename.c_str());
 		return;
 	}
 
