@@ -1,43 +1,43 @@
 add_library (external_libs)
 
-target_sources(
+target_sources (
 	external_libs
 	PUBLIC
-		[[Dear ImGui/imconfig.h]]
-		[[Dear ImGui/imgui.h]]
-		[[Dear ImGui/imgui_internal.h]]
-		[[Dear ImGui/imgui_impl_glfw.h]]
-		[[Dear ImGui/imgui_impl_opengl3.h]]
-		[[Dear ImGui/imgui_impl_opengl3_loader.h]]
-		[[Dear ImGui/imstb_rectpack.h]]
-		[[Dear ImGui/imstb_textedit.h]]
-		[[Dear ImGui/imstb_truetype.h]]
-		[[GLAD/glad/glad.h]]
-		[[GLAD/KHR/khrplatform.h]]
+		"${imgui_SOURCE_DIR}/imconfig.h"
+		"${imgui_SOURCE_DIR}/imgui.h"
+		"${imgui_SOURCE_DIR}/imgui_internal.h"
+		"${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h"
+		"${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h"
 	PRIVATE
-		[[Dear ImGui/imgui.cpp]]
-		[[Dear ImGui/imgui_demo.cpp]]
-		[[Dear ImGui/imgui_draw.cpp]]
-		[[Dear ImGui/imgui_tables.cpp]]
-		[[Dear ImGui/imgui_widgets.cpp]]
-		[[Dear ImGui/imgui_impl_glfw.cpp]]
-		[[Dear ImGui/imgui_impl_opengl3.cpp]]
-		[[GLAD/glad.c]]
+		"${imgui_SOURCE_DIR}/imgui.cpp"
+		"${imgui_SOURCE_DIR}/imgui_demo.cpp"
+		"${imgui_SOURCE_DIR}/imgui_draw.cpp"
+		"${imgui_SOURCE_DIR}/imgui_tables.cpp"
+		"${imgui_SOURCE_DIR}/imgui_widgets.cpp"
+		"${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp"
+		"${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp"
+)
+
+target_compile_definitions (
+	external_libs
+	PRIVATE
+		GLFW_INCLUDE_NONE
 )
 
 target_include_directories (
 	external_libs
 	SYSTEM
 	PUBLIC
-		"${CMAKE_SOURCE_DIR}/src/external/Dear ImGui"
-		"${CMAKE_SOURCE_DIR}/src/external/GLAD"
+		"${imgui_SOURCE_DIR}"
+		"${imgui_SOURCE_DIR}/backends"
 )
 
 target_link_libraries (
 	external_libs
+	PUBLIC
+		glad_gl_core_46
 	PRIVATE
 		glfw
-		$<$<NOT:$<BOOL:${WIN32}>>:dl>
 )
 
 install (TARGETS external_libs DESTINATION lib)

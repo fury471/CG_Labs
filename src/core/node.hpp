@@ -3,7 +3,7 @@
 #include "helpers.hpp"
 #include "TRSTransform.h"
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
@@ -83,7 +83,7 @@ public:
 	//!             OpenGL shader program, and will setup that program's
 	//!             uniforms
 	void set_program(GLuint const* const program,
-	                 std::function<void (GLuint)> const& set_uniforms = [](GLuint /*programID*/){});
+	                 std::function<void (GLuint)> const& set_uniforms = [](GLuint /*programID*/){ });
 
 	//! \brief Set the name of this node.
 	//!
@@ -98,7 +98,7 @@ public:
 	//! \brief Add a texture to this node.
 	//!
 	//! @param [in] name the variable name used by the attached OpenGL
-	//!                  shader program; in assignment 1, this will be
+	//!                  shader program; in assignment 1, this will be
 	//!                  `diffuse_texture`
 	//! @param [in] tex_id the name of an OpenGL 2D-texture
 	//! @param [in] type the type of texture, i.e. GL_TEXTURE_2D,

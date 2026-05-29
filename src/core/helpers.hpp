@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
@@ -46,7 +46,7 @@ namespace bonobo
 		GLsizei vertices_nb{0};                  //!< number of vertices stored in bo
 		GLsizei indices_nb{0};                   //!< number of indices stored in ibo
 		texture_bindings bindings{};             //!< texture bindings for this mesh
-		material_data material{};                //!< constant values for the material of this mesh
+		material_data material{};                //!< constant values for this mesh
 		GLenum drawing_mode{GL_TRIANGLES};       //!< OpenGL drawing mode, i.e. GL_TRIANGLES, GL_LINES, etc.
 		std::string name{"un-named mesh"};       //!< Name of the mesh; used for debugging purposes.
 	};

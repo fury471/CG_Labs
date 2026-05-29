@@ -1,64 +1,23 @@
-find_package (assimp QUIET ${LUGGCGL_ASSIMP_MIN_VERSION})
-if (NOT assimp_FOUND)
-	FetchContent_Declare (
-		assimp
-		GIT_REPOSITORY [[https://github.com/assimp/assimp.git]]
-		GIT_TAG "v${LUGGCGL_ASSIMP_DOWNLOAD_VERSION}"
-		GIT_SHALLOW ON
-	)
+# Build the pinned Assimp dependency as part of the main CMake graph.
+# Assimp 6.0.5 itself requires C++17 and CMake 3.22 or newer.
+set (BUILD_SHARED_LIBS OFF CACHE BOOL "Build dependencies as static libraries" FORCE)
+set (ASSIMP_NO_EXPORT ON CACHE BOOL "Disable model export functionality" FORCE)
+set (ASSIMP_BUILD_ASSIMP_TOOLS OFF CACHE BOOL "Disable Assimp tools" FORCE)
+set (ASSIMP_BUILD_SAMPLES OFF CACHE BOOL "Disable Assimp samples" FORCE)
+set (ASSIMP_BUILD_TESTS OFF CACHE BOOL "Disable Assimp tests" FORCE)
+set (ASSIMP_BUILD_DOCS OFF CACHE BOOL "Disable Assimp documentation" FORCE)
+set (ASSIMP_WARNINGS_AS_ERRORS OFF CACHE BOOL "Do not promote dependency warnings to errors" FORCE)
+set (ASSIMP_INSTALL OFF CACHE BOOL "Use Assimp as an embedded dependency" FORCE)
+set (ASSIMP_IGNORE_GIT_HASH ON CACHE BOOL "Avoid probing dependency git state" FORCE)
 
-	FetchContent_GetProperties (assimp)
-	if (NOT assimp_POPULATED)
-		message (STATUS "Cloning assimp…")
-		FetchContent_Populate (assimp)
-	endif ()
+FetchContent_Declare (
+	assimp
+	GIT_REPOSITORY [[https://github.com/assimp/assimp.git]]
+	GIT_TAG "v${LUGGCGL_ASSIMP_VERSION}"
+	GIT_SHALLOW ON
+)
+FetchContent_MakeAvailable (assimp)
 
-	set (assimp_INSTALL_DIR "${FETCHCONTENT_BASE_DIR}/assimp-install")
-	if (NOT EXISTS "${assimp_INSTALL_DIR}")
-		file (MAKE_DIRECTORY ${assimp_INSTALL_DIR})
-	endif ()
-
-	message (STATUS "Setting up CMake for assimp…")
-	# If a previous configure created a CMake cache in a different path (for example on another machine),
-	# CMake will refuse to reconfigure in-place. Remove any stale cache/build dir so we start clean.
-	if (EXISTS "${assimp_BINARY_DIR}/CMakeCache.txt")
-		message (STATUS "Found existing CMake cache in ${assimp_BINARY_DIR}; removing stale build directory to avoid path mismatch.")
-		file (REMOVE_RECURSE "${assimp_BINARY_DIR}")
-		file (MAKE_DIRECTORY "${assimp_BINARY_DIR}")
-	endif ()
-
-	execute_process (
-		COMMAND ${CMAKE_COMMAND} -S ${assimp_SOURCE_DIR} -B ${assimp_BINARY_DIR}
-				 -DASSIMP_NO_EXPORT=ON
-				 -DASSIMP_BUILD_ASSIMP_TOOLS=OFF
-				 -DASSIMP_BUILD_ZLIB=ON
-				 -DASSIMP_BUILD_TESTS=OFF
-				 -DCMAKE_INSTALL_PREFIX=${assimp_INSTALL_DIR}
-				 -DCMAKE_BUILD_TYPE=Release
-		OUTPUT_VARIABLE stdout
-		ERROR_VARIABLE stderr
-		RESULT_VARIABLE result
-	)
-	if (result)
-		message (FATAL_ERROR "CMake setup for assimp failed: ${result}\n"
-							 "Standard output: ${stdout}\n"
-							 "Error output: ${stderr}")
-	endif ()
-
-	message (STATUS "Building and installing assimp…")
-	execute_process (
-		COMMAND ${CMAKE_COMMAND} --build ${assimp_BINARY_DIR}
-		                         --config Release
-		                         --target install
-		RESULT_VARIABLE result
-	)
-	if (result)
-		message (FATAL_ERROR "Build step for assimp failed: ${result}\n"
-		                     "Standard output: ${stdout}\n"
-		                     "Error output: ${stderr}")
-	endif ()
-
-	list (APPEND CMAKE_PREFIX_PATH ${assimp_INSTALL_DIR}/lib/cmake)
-
-	set (assimp_INSTALL_DIR)
+if (TARGET assimp AND NOT TARGET assimp::assimp)
+	add_library (assimp::assimp ALIAS assimp)
 endif ()

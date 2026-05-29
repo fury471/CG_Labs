@@ -27,14 +27,27 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Enable MSVC Developer Command Prompt
       uses: ilammy/msvc-dev-cmd@v1.9.0
 
+    - name: Install glad generation requirement
+      run: |
+        python -m venv "$env:RUNNER_TEMP\glad-venv"
+        & "$env:RUNNER_TEMP\glad-venv\Scripts\python.exe" -m pip install --upgrade pip
+        & "$env:RUNNER_TEMP\glad-venv\Scripts\python.exe" -m pip install "Jinja2>=2.7,<4.0"
+
     - name: Generate
-      # Preserve compatibility with older fetched dependency CMake scripts.
-      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Ninja -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPython_EXECUTABLE="$env:RUNNER_TEMP\glad-venv\Scripts\python.exe" "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
     - name: Build
-      run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }}
+      run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} -- -k 0 2>&1 | Tee-Object -FilePath "build-${{ matrix.build_type }}.log"
+
+    - name: Upload failed build log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-${{ matrix.build_type }}-build-log
+        path: build-${{ matrix.build_type }}.log
+        if-no-files-found: ignore

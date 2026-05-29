@@ -27,14 +27,26 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
-    - name: Install MacOS Packages
+    - name: Install glad generation requirement
       run: |
-        brew install glfw
+        python3 -m venv "${RUNNER_TEMP}/glad-venv"
+        "${RUNNER_TEMP}/glad-venv/bin/python" -m pip install --upgrade pip
+        "${RUNNER_TEMP}/glad-venv/bin/python" -m pip install "Jinja2>=2.7,<4.0"
 
     - name: Generate
-      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Xcode -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
+      run: cmake -S"${{ github.workspace }}" -B"${{ github.workspace }}/build" -G Xcode -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} -DPython_EXECUTABLE="${RUNNER_TEMP}/glad-venv/bin/python" "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
 
     - name: Build
-      run: cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }}
+      run: |
+        set -o pipefail
+        cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} 2>&1 | tee "build-${{ matrix.build_type }}.log"
+
+    - name: Upload failed build log
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-${{ matrix.build_type }}-build-log
+        path: build-${{ matrix.build_type }}.log
+        if-no-files-found: ignore

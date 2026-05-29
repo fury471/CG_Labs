@@ -3,21 +3,32 @@
 #include "Log.h"
 #include "opengl.hpp"
 
-#include <glad/glad.h>
+#include <glad/gl.h>
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+#include <array>
+#include <cstdio>
+#include <stdexcept>
+#include <type_traits>
+
 namespace
 {
-	const int default_opengl_major_version = 4;
-	const int default_opengl_minor_version = 1;
-	const int default_glsl_version = default_opengl_major_version * 100 + default_opengl_minor_version * 10;
+#ifdef __APPLE__
+	constexpr int default_opengl_major_version = 4;
+	constexpr int default_opengl_minor_version = 1;
+	constexpr char const* imgui_glsl_version = "#version 410 core";
+#else
+	constexpr int default_opengl_major_version = 4;
+	constexpr int default_opengl_minor_version = 6;
+	constexpr char const* imgui_glsl_version = "#version 460 core";
+#endif
 
 	void ErrorCallback(int error, char const* description)
 	{
 		if (error == 65543 || error == 65545)
-			LogError("Couldn't create an OpenGL %d.%d context.\nIf you are using old hardware/drivers which support OpenGL 3.3 but not higher, try using the 'OpenGL_3.3' branch.", default_opengl_major_version, default_opengl_minor_version);
+			LogError("Couldn't create an OpenGL %d.%d context.\nUpdate your graphics drivers or lower the requested context version for unsupported hardware.", default_opengl_major_version, default_opengl_minor_version);
 		else
 			LogError("GLFW error %d was thrown:\n\t%s\n", error, description);
 	}
@@ -118,29 +129,28 @@ GLFWwindow* WindowManager::CreateGLFWWindow(std::string const& title, WindowDatu
 	glfwWindowHint(GLFW_REFRESH_RATE, video_mode->refreshRate);
 
 	GLFWwindow* window = glfwCreateWindow(width, height, title.c_str(), fullscreen ? monitor : nullptr, nullptr);
-
 	if (window == nullptr)
 		return nullptr;
 
 	glfwMakeContextCurrent(window);
 
-	if (!gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress))) {
-		LogError("[GLAD]: Failed to initialise OpenGL context.");
+	int const loaded_gl_version = gladLoadGL(reinterpret_cast<GLADloadfunc>(glfwGetProcAddress));
+	if (loaded_gl_version == 0) {
+		LogError("[glad]: Failed to initialise OpenGL context.");
+		glfwDestroyWindow(window);
 		return nullptr;
 	}
+	int const loaded_gl_major = GLAD_VERSION_MAJOR(loaded_gl_version);
+	int const loaded_gl_minor = GLAD_VERSION_MINOR(loaded_gl_version);
 
-	// Setup Dear ImGui context
+	// Setup Dear ImGui context.
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-
-	// Setup Dear ImGui style
 	ImGui::StyleColorsDark();
 
-	// Setup Platform/Renderer bindings
+	// Setup platform/renderer bindings.
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	char glsl_version_directive[13];
-	std::snprintf(glsl_version_directive, 13, "#version %d%d0", default_opengl_major_version, default_opengl_minor_version);
-	ImGui_ImplOpenGL3_Init(glsl_version_directive);
+	ImGui_ImplOpenGL3_Init(imgui_glsl_version);
 
 	glfwSetKeyCallback(window, KeyCallback);
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, 1);
@@ -155,7 +165,7 @@ GLFWwindow* WindowManager::CreateGLFWWindow(std::string const& title, WindowDatu
 	GLint context_flags = 0, profile_mask = 0;
 	glGetIntegerv(GL_CONTEXT_FLAGS, &context_flags);
 	glGetIntegerv(GL_CONTEXT_PROFILE_MASK, &profile_mask);
-	LogInfo("Using OpenGL %d.%d with context options: profile=%s, debug=%s, forward compatible=%s.", GLVersion.major, GLVersion.minor
+	LogInfo("Using OpenGL %d.%d with context options: profile=%s, debug=%s, forward compatible=%s.", loaded_gl_major, loaded_gl_minor
 	       , (profile_mask & GL_CONTEXT_CORE_PROFILE_BIT) ? "core" : (profile_mask & GL_CONTEXT_COMPATIBILITY_PROFILE_BIT) ? "compatibility" : "unknown"
 	       , (context_flags & GL_CONTEXT_FLAG_DEBUG_BIT) ? "true" : "false"
 	       , (context_flags & GL_CONTEXT_FLAG_FORWARD_COMPATIBLE_BIT) ? "true" : "false"
@@ -170,29 +180,23 @@ GLFWwindow* WindowManager::CreateGLFWWindow(std::string const& title, WindowDatu
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_FALSE);
 #endif
 #if DEBUG_LEVEL == 2
-		// Enable all messages of severity medium or higher.
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_MEDIUM, 0, nullptr, GL_TRUE);
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_HIGH, 0, nullptr, GL_TRUE);
 #elif DEBUG_LEVEL == 3
-		// Enable all messages.
 		glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-
-		// Comment out the next two calls to get scoped debug messages in the logs.
-		// Note that it can come at a significant performance cost.
 		glDebugMessageControl(GL_DONT_CARE, GL_DEBUG_TYPE_PUSH_GROUP, GL_DONT_CARE, 0, nullptr, GL_FALSE);
 		glDebugMessageControl(GL_DONT_CARE, GL_DEBUG_TYPE_POP_GROUP, GL_DONT_CARE, 0, nullptr, GL_FALSE);
 #endif
 #if DEBUG_LEVEL >= 2
-		// Disable certain messages:
 		std::array<GLuint, 1> api_other_ids = {
-			131185u, // "Buffer detailed info: Buffer object Y will use VIDEO memory as the source for buffer object operations."
+			131185u,
 		};
 		glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_OTHER, GL_DONT_CARE, static_cast<GLsizei>(api_other_ids.size()), api_other_ids.data(), GL_FALSE);
 #endif
 	}
 	else
 	{
-		LogInfo("DebugCallback is not core in OpenGL %d.%d, and sadly the GL_KHR_DEBUG extension is not available either.", GLVersion.major, GLVersion.minor);
+		LogInfo("DebugCallback is not core in OpenGL %d.%d, and GL_KHR_debug is not available either.", loaded_gl_major, loaded_gl_minor);
 	}
 
 	glfwSwapInterval(static_cast<std::underlying_type<SwapStrategy>::type>(swap));
@@ -240,16 +244,15 @@ void WindowManager::ToggleFullscreenStatusForWindow(GLFWwindow* const window) no
 	WindowDatum* const datum = reinterpret_cast<WindowDatum*>(glfwGetWindowUserPointer(window));
 
 	GLFWmonitor* current_monitor = glfwGetWindowMonitor(window);
-	if (current_monitor == nullptr) { // We are currentlu windowed.
-		// Save the position and size, to reuse if going back windowed
-		// later on.
+	if (current_monitor == nullptr) {
+		datum->xpos = 0;
+		datum->ypos = 0;
 		glfwGetWindowPos(window, &datum->xpos, &datum->ypos);
 		glfwGetWindowSize(window, &datum->windowed_width, &datum->windowed_height);
-
 		GLFWmonitor* const monitor = glfwGetPrimaryMonitor();
 		GLFWvidmode const* const mode = glfwGetVideoMode(monitor);
 		glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
-	} else { // We are currently fullscreen.
+	} else {
 		glfwSetWindowMonitor(window, nullptr, datum->xpos, datum->ypos, datum->windowed_width, datum->windowed_height, 0);
 	}
 }
