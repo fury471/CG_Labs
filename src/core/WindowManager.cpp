@@ -58,12 +58,16 @@ namespace
 	{
 		WindowManager::WindowDatum* const instance = static_cast<WindowManager::WindowDatum*>(glfwGetWindowUserPointer(window));
 		instance->input_handler.FeedMouseButtons(button, action);
+
+		ImGui_ImplGlfw_MouseButtonCallback(window, button, action, mods);
 	}
 
 	void CursorCallback(GLFWwindow* window, double x, double y)
 	{
 		WindowManager::WindowDatum* const instance = static_cast<WindowManager::WindowDatum*>(glfwGetWindowUserPointer(window));
 		instance->input_handler.FeedMouseMotion(glm::vec2(x, y));
+
+		ImGui_ImplGlfw_CursorPosCallback(window, x, y);
 	}
 
 	void FramebufferSizeCallback(GLFWwindow* window, int width, int height)
