@@ -26,6 +26,20 @@ public:
 	[[nodiscard]] GLuint id() const noexcept { return m_id; }
 	[[nodiscard]] explicit operator bool() const noexcept { return m_id != 0u; }
 
+	/// Binds a vertex buffer to a VAO binding slot without making the VAO current.
+	[[nodiscard]] bool bind_vertex_buffer(GLuint binding_index,
+	                                      GLuint buffer,
+	                                      GLintptr offset,
+	                                      GLsizei stride) const noexcept;
+
+	/// Describes one floating-point vertex attribute and connects it to a binding.
+	[[nodiscard]] bool configure_float_attribute(GLuint attribute_index,
+	                                            GLint component_count,
+	                                            GLenum component_type,
+	                                            GLboolean normalized,
+	                                            GLuint relative_offset,
+	                                            GLuint binding_index) const noexcept;
+
 	void reset() noexcept;
 
 private:
