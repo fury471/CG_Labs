@@ -2,6 +2,7 @@
 
 #include "DebugLabel.hpp"
 
+#include <limits>
 #include <utility>
 
 namespace sfm::gfx
@@ -34,6 +35,22 @@ Buffer& Buffer::operator=(Buffer&& other) noexcept
 		m_id = std::exchange(other.m_id, 0u);
 	}
 	return *this;
+}
+
+bool Buffer::set_storage(std::span<std::byte const> bytes, GLbitfield flags) const noexcept
+{
+	if (m_id == 0u || bytes.empty())
+		return false;
+
+	constexpr auto max_size = static_cast<std::size_t>(std::numeric_limits<GLsizeiptr>::max());
+	if (bytes.size() > max_size)
+		return false;
+
+	glNamedBufferStorage(m_id,
+	                     static_cast<GLsizeiptr>(bytes.size()),
+	                     bytes.data(),
+	                     flags);
+	return true;
 }
 
 void Buffer::reset() noexcept
