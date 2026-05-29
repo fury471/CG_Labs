@@ -18,6 +18,8 @@ FrameTiming FrameClock::tick() noexcept
 	++m_frame_index;
 
 	float const seconds = delta.count();
+	// A very small delta can occur on the first measured frame or under unusual
+	// timer precision. Avoid reporting an infinite/unstable FPS value.
 	float const fps = seconds > std::numeric_limits<float>::epsilon() ? 1.0f / seconds : 0.0f;
 	return FrameTiming{ seconds, seconds * 1000.0f, fps, m_frame_index };
 }

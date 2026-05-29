@@ -5,6 +5,11 @@
 namespace sfm::gfx
 {
 
+/// Minimal frame clear operation owned by the graphics layer.
+///
+/// `SfmSandbox` still has no scene renderer in Milestone 2. Keeping viewport
+/// and clear-state changes here prevents the app shell from accumulating raw
+/// OpenGL calls while later renderer abstractions are still being designed.
 class ClearPass final
 {
 public:
