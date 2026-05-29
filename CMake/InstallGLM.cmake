@@ -9,6 +9,5 @@ FetchContent_Declare (
 	GIT_REPOSITORY [[https://github.com/g-truc/glm.git]]
 	GIT_TAG "${LUGGCGL_GLM_VERSION}"
 	GIT_SHALLOW ON
-	EXCLUDE_FROM_ALL
 )
 FetchContent_MakeAvailable (glm)
