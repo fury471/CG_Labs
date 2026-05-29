@@ -1,7 +1,7 @@
 # Milestone 2 Record: Move-only RAII GPU Resource Layer
 
 - **Milestone:** 2
-- **Status:** SfmSandbox ownership validation passed; legacy regression launch confirmation pending
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m2-gpu-raii`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -91,12 +91,15 @@ Ownership probe: passed/failed
 
 ## Local validation status
 
-Local evidence received on 2026-05-30:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
 
 - screenshot of `SfmSandbox` running with OpenGL 4.6, debug context enabled;
 - `Sandbox status` panel visible;
 - `Ownership probe: passed` visible;
-- every resource type reports both compile-time move-only contract and create/move/reset invariants as passed.
+- every resource type reports both compile-time move-only contract and create/move/reset invariants as passed;
+- developer confirmation that remaining legacy regression and sandbox control checks also passed.
 
 Reference build commands:
 
@@ -114,21 +117,30 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending confirmation |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending confirmation |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
 | `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
 | `SfmSandbox` | Panel shows `Milestone 2: GPU RAII ownership` | Passed — screenshot confirmed |
 | `SfmSandbox` | Panel shows `Ownership probe: passed` | Passed — screenshot confirmed |
 | `SfmSandbox` | Probe messages list every resource type as passed | Passed — screenshot confirmed |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Pending confirmation |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc`, and resize behaviour still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - The RAII classes are lifetime owners only; they do not yet provide high-level data upload, shader linking, texture storage, sampler configuration, or framebuffer attachment APIs.
 - The ownership probe is a manual runtime check, not a replacement for automated CPU/GPU tests.
 - No performance claim is made by this milestone.
 - `SfmSandbox` still does not render scene geometry, point clouds, camera poses, trajectories or reconstructed meshes.
 
-## Completion gate
+## Completion assessment
 
-Milestone 2 is complete only after the remaining regression and control checks are confirmed and this document is updated from pending to complete.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` ownership probe passes | Passed — screenshot confirmed |
+| New GPU resources use move-only RAII ownership | Passed — source implementation and probe |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 2 is complete and may be merged into `feature/sfm-visualization-sandbox`.
