@@ -52,16 +52,7 @@ struct UniformLocation final
 };
 
 class ShaderProgram;
-
-/// Result of compiling and linking a shader program.
-///
-/// The result is intentionally not an exception-only interface: shader compile
-/// errors are expected development feedback, and returning the driver log makes
-/// them visible in the sandbox UI and milestone probes.
-struct ShaderProgramBuildResult final
-{
-	ShaderProgram* unused_for_incomplete_type_workaround{ nullptr };
-};
+struct ShaderProgramBuildResult;
 
 /// Owns one OpenGL program object and its cached binding metadata.
 ///
@@ -72,13 +63,6 @@ struct ShaderProgramBuildResult final
 class ShaderProgram final
 {
 public:
-	struct BuildResult final
-	{
-		ShaderProgram program{};
-		bool succeeded{ false };
-		std::string log{};
-	};
-
 	ShaderProgram() noexcept = default;
 	explicit ShaderProgram(std::string_view debug_label) noexcept;
 	~ShaderProgram() noexcept;
@@ -90,8 +74,8 @@ public:
 
 	/// Compiles all shader stages, links them into a program and returns the log.
 	/// Failed builds return an empty `program` and `succeeded == false`.
-	[[nodiscard]] static BuildResult build(std::span<ShaderSource const> sources,
-	                                      std::string_view debug_label);
+	[[nodiscard]] static ShaderProgramBuildResult build(std::span<ShaderSource const> sources,
+	                                                   std::string_view debug_label);
 
 	[[nodiscard]] GLuint id() const noexcept { return m_id; }
 	[[nodiscard]] explicit operator bool() const noexcept { return m_id != 0u; }
@@ -118,6 +102,18 @@ public:
 private:
 	GLuint m_id{ 0u };
 	mutable std::unordered_map<std::string, UniformLocation> m_uniform_locations{};
+};
+
+/// Result of compiling and linking a shader program.
+///
+/// The result is intentionally not an exception-only interface: shader compile
+/// errors are expected development feedback, and returning the driver log makes
+/// them visible in the sandbox UI and milestone probes.
+struct ShaderProgramBuildResult final
+{
+	ShaderProgram program{};
+	bool succeeded{ false };
+	std::string log{};
 };
 
 } // namespace sfm::gfx
