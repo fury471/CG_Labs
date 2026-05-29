@@ -72,9 +72,13 @@ Configuring and building
 ========================
 
 All information regarding software configuration, prerequisites, setup and
-building the framework can be found in BUILD.rst_. The Windows instructions
-there describe the Visual Studio 2026 + Ninja workflow; macOS and Linux notes
-also document the OpenGL policy and the glad generation prerequisite.
+building the framework can be found in BUILD.rst_. For Windows, create the
+repository-local ``.venv-glad`` environment described there **before the first
+Visual Studio CMake configure**. The committed ``CMakeSettings.json`` then uses
+Ninja, generates IDE builds below ``out\build``, and points glad generation to
+that local Python environment. BUILD.rst_ also documents command-line Ninja
+builds and troubleshooting for generated ``glad/gl.h`` and Visual Studio cache
+failures.
 
 Miscellaneous
 =============
