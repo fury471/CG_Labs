@@ -4,13 +4,15 @@
 #include "ShaderProgram.hpp"
 #include "VertexArray.hpp"
 
+#include <glm/glm.hpp>
+
 #include <string>
 #include <vector>
 
 namespace sfm::gfx
 {
 
-/// Result of constructing the first central renderer pipeline.
+/// Result of constructing the central renderer pipeline.
 ///
 /// Renderer setup can fail because shader compilation, linkage, or GPU resource
 /// configuration can fail. Returning structured messages keeps diagnostics
@@ -23,9 +25,9 @@ struct RendererBuildResult final
 
 /// Owns the GPU state needed by the sandbox renderer.
 ///
-/// Milestone 4 deliberately keeps the renderer small: one triangle pipeline and
-/// one draw call. The important architectural step is that application code now
-/// asks a renderer to draw instead of directly issuing draw-call setup itself.
+/// Milestone 5 turns the renderer into a small 3D visualization viewport: the
+/// app provides a camera transform, while the renderer owns grid/axes geometry,
+/// shader state and draw submission.
 class Renderer final
 {
 public:
@@ -37,20 +39,23 @@ public:
 	Renderer(Renderer&&) noexcept = default;
 	Renderer& operator=(Renderer&&) noexcept = default;
 
-	/// Builds the first visible GPU pipeline. Call only after an OpenGL context is
-	/// current and before the context is destroyed.
+	/// Builds the first world-space visualization pipeline. Call only after an
+	/// OpenGL context is current and before the context is destroyed.
 	[[nodiscard]] RendererBuildResult initialise();
 
-	/// Draws the current renderer contents. The app owns the frame lifecycle;
-	/// Renderer owns the GPU pipeline and draw submission.
-	void render() const noexcept;
+	/// Draws the current renderer contents from the supplied camera transform.
+	/// `world_to_clip` is usually camera.GetWorldToClipMatrix().
+	void render(glm::mat4 const& world_to_clip) const noexcept;
 
 	[[nodiscard]] bool ready() const noexcept { return m_ready; }
+	[[nodiscard]] GLsizei line_vertex_count() const noexcept { return m_line_vertex_count; }
 
 private:
 	ShaderProgram m_program{};
+	UniformLocation m_world_to_clip_uniform{};
 	VertexArray m_vertex_array{};
 	Buffer m_vertex_buffer{};
+	GLsizei m_line_vertex_count{ 0 };
 	bool m_ready{ false };
 };
 
