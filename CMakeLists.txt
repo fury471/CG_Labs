@@ -115,6 +115,8 @@ endfunction ()
 
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/external")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/core")
+add_subdirectory ("${CMAKE_SOURCE_DIR}/src/sandbox")
+add_subdirectory ("${CMAKE_SOURCE_DIR}/src/apps/SfmSandbox")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/EDAF80")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/EDAN35")
 
