@@ -2,9 +2,25 @@ add_library (sfm_sandbox_gfx STATIC)
 target_sources (
 	sfm_sandbox_gfx
 	PUBLIC
+		[[Buffer.hpp]]
 		[[ClearPass.hpp]]
+		[[Framebuffer.hpp]]
+		[[OwnershipProbe.hpp]]
+		[[Sampler.hpp]]
+		[[ShaderProgram.hpp]]
+		[[Texture2D.hpp]]
+		[[VertexArray.hpp]]
 	PRIVATE
+		[[Buffer.cpp]]
 		[[ClearPass.cpp]]
+		[[DebugLabel.cpp]]
+		[[DebugLabel.hpp]]
+		[[Framebuffer.cpp]]
+		[[OwnershipProbe.cpp]]
+		[[Sampler.cpp]]
+		[[ShaderProgram.cpp]]
+		[[Texture2D.cpp]]
+		[[VertexArray.cpp]]
 )
 target_include_directories (
 	sfm_sandbox_gfx
