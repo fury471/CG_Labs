@@ -6,8 +6,11 @@ target_compile_features (sfm_sandbox_options INTERFACE cxx_std_20)
 target_compile_options (
 	sfm_sandbox_options
 	INTERFACE
-		$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4;/permissive->
-		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall;-Wextra;-Wpedantic>
+		$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4>
+		$<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/permissive->
+		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall>
+		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wextra>
+		$<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wpedantic>
 )
 
 add_subdirectory ("${CMAKE_CURRENT_SOURCE_DIR}/core")
