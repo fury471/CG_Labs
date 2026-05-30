@@ -12,11 +12,29 @@
 
 #include <glm/gtc/constants.hpp>
 
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <clocale>
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <utility>
+
+namespace
+{
+
+constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
+
+void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path const& path)
+{
+	std::string const text = path.string();
+	buffer.fill('\0');
+	std::size_t const count = std::min(text.size(), buffer.size() - 1u);
+	std::copy_n(text.data(), count, buffer.data());
+}
+
+} // namespace
 
 int main()
 {
@@ -52,18 +70,24 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Milestone 7 loads point data from a small checked-in resource file. The
-	// procedural cloud remains a fallback so the renderer can still be validated
-	// when a resource path is wrong or a file is malformed during development.
-	sfm::scene::PointCloudLoadResult point_cloud_load =
-		sfm::scene::load_point_cloud_from_text_file(config::resources_path("sandbox/sample_point_cloud.xyzrgb"));
-	bool const using_loaded_point_cloud = point_cloud_load.succeeded;
-	sfm::scene::PointCloud const point_cloud = using_loaded_point_cloud
+	// Milestone 8 keeps the resource-file loader from Milestone 7, but makes the
+	// source path editable at runtime. A failed reload does not destroy the last
+	// valid cloud; the renderer is updated only after a file has loaded correctly.
+	std::filesystem::path const default_point_cloud_path = config::resources_path(kDefaultPointCloudResource);
+	std::array<char, 512> point_cloud_path_buffer{};
+	copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
+
+	sfm::scene::PointCloudLoadResult point_cloud_load = sfm::scene::load_point_cloud_from_text_file(default_point_cloud_path);
+	bool using_loaded_point_cloud = point_cloud_load.succeeded;
+	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud
 		? std::move(point_cloud_load.cloud)
 		: sfm::scene::PointCloud::make_debug_cluster();
+	std::string active_point_cloud_source = using_loaded_point_cloud ? default_point_cloud_path.string() : "procedural fallback";
+	std::string last_reload_status = using_loaded_point_cloud ? "Initial resource file loaded" : "Initial load failed; using procedural fallback";
+	int reload_count = 0;
 
 	sfm::gfx::Renderer renderer;
-	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise(point_cloud);
+	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -107,8 +131,38 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 7: Point cloud loading from file");
-			ImGui::Text("Point source: %s", using_loaded_point_cloud ? "resource file" : "procedural fallback");
+			ImGui::TextUnformatted("Milestone 8: Runtime point cloud file reload");
+			ImGui::InputText("Path", point_cloud_path_buffer.data(), point_cloud_path_buffer.size());
+			if (ImGui::Button("Load / Reload")) {
+				std::filesystem::path const requested_path{ std::string{ point_cloud_path_buffer.data() } };
+				sfm::scene::PointCloudLoadResult candidate_load = sfm::scene::load_point_cloud_from_text_file(requested_path);
+				if (candidate_load.succeeded) {
+					sfm::scene::PointCloud candidate_cloud = std::move(candidate_load.cloud);
+					sfm::gfx::RendererBuildResult candidate_renderer_build = renderer.reload_point_cloud(candidate_cloud);
+					if (candidate_renderer_build.succeeded) {
+						point_cloud = std::move(candidate_cloud);
+						point_cloud_load = std::move(candidate_load);
+						renderer_build = std::move(candidate_renderer_build);
+						using_loaded_point_cloud = true;
+						active_point_cloud_source = requested_path.string();
+						last_reload_status = "Reload succeeded";
+						++reload_count;
+					} else {
+						renderer_build = std::move(candidate_renderer_build);
+						last_reload_status = "Reload failed during GPU upload; previous cloud kept";
+					}
+				} else {
+					point_cloud_load = std::move(candidate_load);
+					last_reload_status = "Reload failed during file load; previous cloud kept";
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to sample")) {
+				copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
+			}
+			ImGui::Text("Active source: %s", using_loaded_point_cloud ? active_point_cloud_source.c_str() : "procedural fallback");
+			ImGui::Text("Last reload: %s", last_reload_status.c_str());
+			ImGui::Text("Successful reloads: %d", reload_count);
 			ImGui::Text("CPU point samples: %zu", point_cloud.size());
 			ImGui::Text("Skipped input lines: %zu", point_cloud_load.skipped_lines);
 			for (std::string const& message : point_cloud_load.messages)

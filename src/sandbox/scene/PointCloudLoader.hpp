@@ -2,6 +2,7 @@
 
 #include "PointCloud.hpp"
 
+#include <cstddef>
 #include <filesystem>
 #include <string>
 #include <vector>
