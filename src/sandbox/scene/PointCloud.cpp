@@ -2,6 +2,7 @@
 
 #include <glm/gtc/constants.hpp>
 
+#include <algorithm>
 #include <cmath>
 #include <utility>
 
@@ -11,6 +12,28 @@ namespace sfm::scene
 PointCloud::PointCloud(std::vector<PointSample> points)
 	: m_points(std::move(points))
 {
+}
+
+PointCloudStatistics PointCloud::statistics() const noexcept
+{
+	PointCloudStatistics statistics{};
+	statistics.point_count = m_points.size();
+	statistics.approximate_cpu_bytes = m_points.size() * sizeof(PointSample);
+	if (m_points.empty())
+		return statistics;
+
+	glm::vec3 bounds_min = m_points.front().position;
+	glm::vec3 bounds_max = m_points.front().position;
+	for (PointSample const& point : m_points) {
+		bounds_min = glm::min(bounds_min, point.position);
+		bounds_max = glm::max(bounds_max, point.position);
+	}
+
+	statistics.has_bounds = true;
+	statistics.bounds_min = bounds_min;
+	statistics.bounds_max = bounds_max;
+	statistics.bounds_extent = bounds_max - bounds_min;
+	return statistics;
 }
 
 PointCloud PointCloud::make_debug_cluster()
