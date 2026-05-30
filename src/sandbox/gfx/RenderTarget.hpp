@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <string>
+#include <utility>
 
 namespace sfm::gfx
 {
