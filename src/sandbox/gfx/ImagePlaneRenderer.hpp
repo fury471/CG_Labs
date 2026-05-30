@@ -8,6 +8,7 @@
 #include <glad/gl.h>
 #include <glm/glm.hpp>
 
+#include <algorithm>
 #include <array>
 #include <span>
 #include <string>
