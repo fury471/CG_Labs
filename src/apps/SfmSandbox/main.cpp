@@ -133,13 +133,18 @@ int main()
 
 	bool show_gui = true;
 	bool show_logs = false;
+	float ui_scale = 1.35f;
 
 	while (!glfwWindowShouldClose(window)) {
 		sfm::core::FrameTiming const frame_timing = frame_clock.tick();
 		auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(frame_timing.delta_seconds));
 
 		glfwPollEvents();
-		ImGuiIO const& io = ImGui::GetIO();
+		ImGuiIO& io = ImGui::GetIO();
+		// The sandbox is a long-running inspection tool, so the debug UI must remain
+		// readable on high-DPI displays. FontGlobalScale is cheap to adjust at
+		// runtime and avoids introducing a font-asset dependency in this milestone.
+		io.FontGlobalScale = ui_scale;
 		input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
 		input_handler.Advance();
 		camera.Update(delta_time, input_handler);
@@ -169,6 +174,7 @@ int main()
 			ImGui::Text("FPS: %.1f", frame_timing.frames_per_second);
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
+			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
 			ImGui::TextUnformatted("Milestone 13: Point-cloud inspection controls and UX polish");
 			draw_point_cloud_statistics(point_cloud.statistics());
