@@ -236,10 +236,6 @@ RendererBuildResult Renderer::initialise_point_pipeline_if_needed()
 RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& point_cloud)
 {
 	RendererBuildResult result{};
-	m_ready = false;
-	m_point_count = 0;
-	m_point_vertex_array.reset();
-	m_point_vertex_buffer.reset();
 
 	if (!m_grid_ready) {
 		add_message(result, "Point cloud reload failed: grid pipeline is not ready");
@@ -256,20 +252,27 @@ RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& p
 		return result;
 
 	std::vector<PointVertex> const point_vertices = build_point_vertices(point_cloud);
-	m_point_count = static_cast<GLsizei>(point_vertices.size());
-	m_point_vertex_buffer = Buffer{ "SfmSandbox point vertex buffer" };
-	if (!m_point_vertex_buffer.set_storage(std::span<PointVertex const>{ point_vertices.data(), point_vertices.size() })) {
-		add_message(result, "Point vertex-buffer upload failed");
+	Buffer replacement_buffer{ "SfmSandbox point vertex buffer" };
+	if (!replacement_buffer.set_storage(std::span<PointVertex const>{ point_vertices.data(), point_vertices.size() })) {
+		add_message(result, "Point vertex-buffer upload failed; previous point cloud kept");
 		return result;
 	}
-	m_point_vertex_array = VertexArray{ "SfmSandbox point vertex array" };
-	if (!configure_vertex_layout(m_point_vertex_array, m_point_vertex_buffer.id(), static_cast<GLsizei>(sizeof(PointVertex)))) {
-		add_message(result, "Point vertex-array layout failed");
-		return result;
-	}
-	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
 
+	VertexArray replacement_vertex_array{ "SfmSandbox point vertex array" };
+	if (!configure_vertex_layout(replacement_vertex_array, replacement_buffer.id(), static_cast<GLsizei>(sizeof(PointVertex)))) {
+		add_message(result, "Point vertex-array layout failed; previous point cloud kept");
+		return result;
+	}
+
+	// Commit only after the full replacement path succeeds. This preserves the
+	// previous visible cloud if a reload fails after file parsing but before GPU
+	// resource setup completes.
+	m_point_vertex_buffer = std::move(replacement_buffer);
+	m_point_vertex_array = std::move(replacement_vertex_array);
+	m_point_count = static_cast<GLsizei>(point_vertices.size());
 	m_ready = true;
+
+	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
 	result.succeeded = true;
 	return result;
 }
