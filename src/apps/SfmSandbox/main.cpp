@@ -6,6 +6,7 @@
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
 #include "sandbox/scene/PointCloud.hpp"
+#include "sandbox/scene/PointCloudLoader.hpp"
 
 #include <imgui.h>
 
@@ -50,11 +51,18 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Milestone 6 introduces the first CPU-side point-cloud model. The renderer
-	// receives immutable point data at setup and uploads it to a GPU point path.
-	sfm::scene::PointCloud const debug_point_cloud = sfm::scene::PointCloud::make_debug_cluster();
+	// Milestone 7 loads point data from a small checked-in resource file. The
+	// procedural cloud remains a fallback so the renderer can still be validated
+	// when a resource path is wrong or a file is malformed during development.
+	sfm::scene::PointCloudLoadResult point_cloud_load =
+		sfm::scene::load_point_cloud_from_text_file(config::resources_path("sandbox/sample_point_cloud.xyzrgb"));
+	bool const using_loaded_point_cloud = point_cloud_load.succeeded;
+	sfm::scene::PointCloud const point_cloud = using_loaded_point_cloud
+		? std::move(point_cloud_load.cloud)
+		: sfm::scene::PointCloud::make_debug_cluster();
+
 	sfm::gfx::Renderer renderer;
-	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise(debug_point_cloud);
+	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise(point_cloud);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -98,10 +106,16 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 6: PointCloud data model and first point renderer");
+			ImGui::TextUnformatted("Milestone 7: Point cloud loading from file");
+			ImGui::Text("Point source: %s", using_loaded_point_cloud ? "resource file" : "procedural fallback");
+			ImGui::Text("CPU point samples: %zu", point_cloud.size());
+			ImGui::Text("Skipped input lines: %zu", point_cloud_load.skipped_lines);
+			for (std::string const& message : point_cloud_load.messages)
+				ImGui::BulletText("%s", message.c_str());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Renderer status");
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
 			ImGui::Text("Line vertices: %d", renderer.line_vertex_count());
-			ImGui::Text("CPU point samples: %zu", debug_point_cloud.size());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
