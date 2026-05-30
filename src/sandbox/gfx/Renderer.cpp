@@ -92,6 +92,11 @@ void add_message(RendererBuildResult& result, std::string message)
 	result.messages.emplace_back(std::move(message));
 }
 
+void append_messages(RendererBuildResult& destination, RendererBuildResult const& source)
+{
+	destination.messages.insert(destination.messages.end(), source.messages.begin(), source.messages.end());
+}
+
 std::vector<DebugVertex> build_grid_and_axes_vertices()
 {
 	std::vector<DebugVertex> vertices;
@@ -136,14 +141,34 @@ RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_clo
 {
 	RendererBuildResult result{};
 	m_ready = false;
+
+	RendererBuildResult grid_result = initialise_grid_pipeline();
+	append_messages(result, grid_result);
+	if (!grid_result.succeeded)
+		return result;
+
+	RendererBuildResult point_result = reload_point_cloud(point_cloud);
+	append_messages(result, point_result);
+	if (!point_result.succeeded)
+		return result;
+
+	result.succeeded = true;
+	add_message(result, "Central renderer is ready with grid/axes and point cloud pipelines");
+	return result;
+}
+
+RendererBuildResult Renderer::initialise_grid_pipeline()
+{
+	RendererBuildResult result{};
+	m_grid_ready = false;
+	m_ready = false;
 	m_line_vertex_count = 0;
-	m_point_count = 0;
 
 	std::array<ShaderSource, 2> const grid_sources{
-		ShaderSource{ ShaderStage::vertex, kLineVertexShader, "Milestone6 grid vertex shader" },
-		ShaderSource{ ShaderStage::fragment, kLineFragmentShader, "Milestone6 grid fragment shader" },
+		ShaderSource{ ShaderStage::vertex, kLineVertexShader, "SfmSandbox grid vertex shader" },
+		ShaderSource{ ShaderStage::fragment, kLineFragmentShader, "SfmSandbox grid fragment shader" },
 	};
-	ShaderProgramBuildResult grid_build = ShaderProgram::build(grid_sources, "Milestone6 grid renderer program");
+	ShaderProgramBuildResult grid_build = ShaderProgram::build(grid_sources, "SfmSandbox grid renderer program");
 	if (!grid_build.succeeded || !grid_build.program) {
 		add_message(result, "Grid shader build failed");
 		add_message(result, grid_build.log.empty() ? "<empty shader log>" : grid_build.log);
@@ -159,28 +184,36 @@ RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_clo
 
 	std::vector<DebugVertex> const grid_vertices = build_grid_and_axes_vertices();
 	m_line_vertex_count = static_cast<GLsizei>(grid_vertices.size());
-	m_grid_vertex_buffer = Buffer{ "Milestone6 grid vertex buffer" };
+	m_grid_vertex_buffer = Buffer{ "SfmSandbox grid vertex buffer" };
 	if (!m_grid_vertex_buffer.set_storage(std::span<DebugVertex const>{ grid_vertices.data(), grid_vertices.size() })) {
 		add_message(result, "Grid vertex-buffer upload failed");
 		return result;
 	}
-	m_grid_vertex_array = VertexArray{ "Milestone6 grid vertex array" };
+	m_grid_vertex_array = VertexArray{ "SfmSandbox grid vertex array" };
 	if (!configure_vertex_layout(m_grid_vertex_array, m_grid_vertex_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
 		add_message(result, "Grid vertex-array layout failed");
 		return result;
 	}
 	add_message(result, "Grid/axes GPU layout configured");
 
-	if (point_cloud.empty()) {
-		add_message(result, "Point cloud is empty; renderer remains unavailable");
+	m_grid_ready = true;
+	result.succeeded = true;
+	return result;
+}
+
+RendererBuildResult Renderer::initialise_point_pipeline_if_needed()
+{
+	RendererBuildResult result{};
+	if (m_point_program_ready) {
+		result.succeeded = true;
 		return result;
 	}
 
 	std::array<ShaderSource, 2> const point_sources{
-		ShaderSource{ ShaderStage::vertex, kPointVertexShader, "Milestone6 point vertex shader" },
-		ShaderSource{ ShaderStage::fragment, kPointFragmentShader, "Milestone6 point fragment shader" },
+		ShaderSource{ ShaderStage::vertex, kPointVertexShader, "SfmSandbox point vertex shader" },
+		ShaderSource{ ShaderStage::fragment, kPointFragmentShader, "SfmSandbox point fragment shader" },
 	};
-	ShaderProgramBuildResult point_build = ShaderProgram::build(point_sources, "Milestone6 point renderer program");
+	ShaderProgramBuildResult point_build = ShaderProgram::build(point_sources, "SfmSandbox point renderer program");
 	if (!point_build.succeeded || !point_build.program) {
 		add_message(result, "Point shader build failed");
 		add_message(result, point_build.log.empty() ? "<empty shader log>" : point_build.log);
@@ -188,31 +221,56 @@ RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_clo
 	}
 	m_point_program = std::move(point_build.program);
 	m_point_world_to_clip_uniform = m_point_program.uniform_location("u_world_to_clip");
-	UniformLocation const point_size = m_point_program.uniform_location("u_point_size");
-	if (!m_point_world_to_clip_uniform || !point_size) {
+	m_point_size_uniform = m_point_program.uniform_location("u_point_size");
+	if (!m_point_world_to_clip_uniform || !m_point_size_uniform) {
 		add_message(result, "Point shader build failed: required uniform is missing");
 		return result;
 	}
-	m_point_program.set_uniform(point_size, 5.0f);
+	m_point_program.set_uniform(m_point_size_uniform, 5.0f);
+	m_point_program_ready = true;
+	result.succeeded = true;
 	add_message(result, "Point shader compiled and cached uniforms");
+	return result;
+}
+
+RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& point_cloud)
+{
+	RendererBuildResult result{};
+	m_ready = false;
+	m_point_count = 0;
+	m_point_vertex_array.reset();
+	m_point_vertex_buffer.reset();
+
+	if (!m_grid_ready) {
+		add_message(result, "Point cloud reload failed: grid pipeline is not ready");
+		return result;
+	}
+	if (point_cloud.empty()) {
+		add_message(result, "Point cloud reload failed: CPU point cloud is empty");
+		return result;
+	}
+
+	RendererBuildResult point_program_result = initialise_point_pipeline_if_needed();
+	append_messages(result, point_program_result);
+	if (!point_program_result.succeeded)
+		return result;
 
 	std::vector<PointVertex> const point_vertices = build_point_vertices(point_cloud);
 	m_point_count = static_cast<GLsizei>(point_vertices.size());
-	m_point_vertex_buffer = Buffer{ "Milestone6 point vertex buffer" };
+	m_point_vertex_buffer = Buffer{ "SfmSandbox point vertex buffer" };
 	if (!m_point_vertex_buffer.set_storage(std::span<PointVertex const>{ point_vertices.data(), point_vertices.size() })) {
 		add_message(result, "Point vertex-buffer upload failed");
 		return result;
 	}
-	m_point_vertex_array = VertexArray{ "Milestone6 point vertex array" };
+	m_point_vertex_array = VertexArray{ "SfmSandbox point vertex array" };
 	if (!configure_vertex_layout(m_point_vertex_array, m_point_vertex_buffer.id(), static_cast<GLsizei>(sizeof(PointVertex)))) {
 		add_message(result, "Point vertex-array layout failed");
 		return result;
 	}
-	add_message(result, "Point cloud GPU layout configured");
+	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
 
 	m_ready = true;
 	result.succeeded = true;
-	add_message(result, "Central renderer is ready with grid/axes and point cloud pipelines");
 	return result;
 }
 
