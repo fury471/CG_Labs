@@ -19,6 +19,69 @@ It uses the Visual Studio 2026 MSVC toolchain with CMake and the Ninja generator
 on Windows, and requests modern OpenGL contexts where the native platform
 supports them. See BUILD.rst_ for configuration and build instructions.
 
+SfM Visualization Sandbox
+=========================
+
+The ``feature/sfm-visualization-sandbox`` branch contains a focused SfM
+Visualization Sandbox application in addition to the original course lab
+programs. The sandbox is a development and learning tool, not a full SfM
+reconstruction package.
+
+The sandbox currently supports:
+
+* point clouds;
+* camera poses, frustums, trajectories and metadata;
+* simple surface inspection through a documented tiny OBJ subset;
+* camera-image association through a small ASCII PPM debug path;
+* projection-debug image planes;
+* render-target and CPU profiling diagnostics;
+* an instanced repeated-marker stress scene.
+
+Main sandbox paths:
+
+.. code-block:: text
+
+   src/apps/SfmSandbox
+   src/sandbox/core
+   src/sandbox/scene
+   src/sandbox/gfx
+   shaders/sandbox
+   res/sandbox
+   docs/sandbox
+
+Supported sandbox command-line workflow:
+
+.. code-block:: bat
+
+   git switch feature/sfm-visualization-sandbox
+   cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+   cmake --build build
+   ctest --test-dir build --output-on-failure
+
+Launch checks:
+
+.. code-block:: bat
+
+   build\src\apps\SfmSandbox\SfmSandbox.exe
+   build\src\EDAF80\EDAF80_Assignment1.exe
+   build\src\EDAN35\EDAN35_Assignment2.exe
+
+Sandbox pull requests use ``.github/workflows/sandbox-ci.yml`` for the Windows
+Ninja configure/build/test gate. AI-assisted intermediate commits use
+``[skip ci]``; final pull requests should not skip CI.
+
+Important sandbox documents:
+
+* ``docs/sandbox/ROADMAP.md``;
+* ``docs/sandbox/ENGINEERING_STANDARDS.md``;
+* ``docs/sandbox/release-readiness-m20.md``;
+* ``docs/sandbox/resource-license-inventory.md``;
+* ``docs/sandbox/rendering-regression-checklist.md``.
+
+The ``res/sandbox`` samples are synthetic development samples created for the
+sandbox. Inherited course resources and third-party dependencies still need
+license review before any external release claim.
+
 Dependencies
 ============
 
