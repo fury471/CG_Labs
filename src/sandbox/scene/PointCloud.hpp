@@ -21,6 +21,22 @@ struct PointSample final
 	glm::vec3 colour{};
 };
 
+/// Basic CPU-side point-cloud statistics used by the inspection UI.
+///
+/// These values are deliberately computed from the loaded CPU model, not from
+/// renderer state, because they describe dataset content rather than OpenGL
+/// resources. Later milestones can extend this with density, colour ranges or
+/// source-format metadata without changing the renderer contract.
+struct PointCloudStatistics final
+{
+	std::size_t point_count{ 0u };
+	std::size_t approximate_cpu_bytes{ 0u };
+	bool has_bounds{ false };
+	glm::vec3 bounds_min{};
+	glm::vec3 bounds_max{};
+	glm::vec3 bounds_extent{};
+};
+
 /// Minimal CPU-side point cloud container.
 ///
 /// `PointCloud` is renderer-independent: it owns semantic visualization data,
@@ -35,6 +51,7 @@ public:
 	[[nodiscard]] bool empty() const noexcept { return m_points.empty(); }
 	[[nodiscard]] std::size_t size() const noexcept { return m_points.size(); }
 	[[nodiscard]] std::span<PointSample const> points() const noexcept { return m_points; }
+	[[nodiscard]] PointCloudStatistics statistics() const noexcept;
 
 	/// Builds a deterministic sample cloud for validating the renderer before any
 	/// file importer or SfM pipeline exists. The pattern forms a small coloured
