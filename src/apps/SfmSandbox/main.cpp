@@ -51,6 +51,37 @@ void draw_point_cloud_statistics(sfm::scene::PointCloudStatistics const& statist
 	ImGui::Text("Bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
 }
 
+char const* colour_mode_label(sfm::gfx::PointColourMode mode)
+{
+	switch (mode) {
+	case sfm::gfx::PointColourMode::Source: return "Source colour";
+	case sfm::gfx::PointColourMode::Height: return "Height gradient";
+	case sfm::gfx::PointColourMode::Solid: return "Solid colour";
+	}
+	return "Unknown";
+}
+
+void draw_point_controls(sfm::gfx::PointCloudRenderSettings& settings)
+{
+	ImGui::SliderFloat("Point size", &settings.point_size, 1.0f, 18.0f, "%.1f px");
+	int colour_mode = static_cast<int>(settings.colour_mode);
+	if (ImGui::BeginCombo("Point colour mode", colour_mode_label(settings.colour_mode))) {
+		for (int value = 0; value <= 2; ++value) {
+			auto const mode = static_cast<sfm::gfx::PointColourMode>(value);
+			bool const selected = colour_mode == value;
+			if (ImGui::Selectable(colour_mode_label(mode), selected))
+				colour_mode = value;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
+	}
+	settings.colour_mode = static_cast<sfm::gfx::PointColourMode>(colour_mode);
+	if (settings.colour_mode == sfm::gfx::PointColourMode::Solid)
+		ImGui::ColorEdit3("Solid point colour", &settings.solid_colour.x);
+	ImGui::Checkbox("Show point-cloud bounds", &settings.show_bounds);
+}
+
 } // namespace
 
 int main()
@@ -59,10 +90,7 @@ int main()
 
 	Bonobo framework;
 	InputHandler input_handler;
-	FPSCameraf camera(0.5f * glm::half_pi<float>(),
-	                  static_cast<float>(config::resolution_x) / static_cast<float>(config::resolution_y),
-	                  0.01f,
-	                  1000.0f);
+	FPSCameraf camera(0.5f * glm::half_pi<float>(), static_cast<float>(config::resolution_x) / static_cast<float>(config::resolution_y), 0.01f, 1000.0f);
 	camera.mWorld.SetTranslate(glm::vec3(0.0f, 3.0f, 8.0f));
 	camera.mMovementSpeed = glm::vec3(6.0f);
 	camera.mMouseSensitivity = glm::vec2(0.003f);
@@ -75,21 +103,12 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-	// Everything below this point may assume that an OpenGL context is current.
-	// GPU-owning RAII objects must also be destroyed before DestroyWindow() tears
-	// the context down, so keep future long-lived owners inside this lifetime.
 	sfm::core::FrameClock frame_clock;
 	sfm::gfx::ClearPass clear_pass({ 0.035f, 0.055f, 0.090f, 1.0f });
 	clear_pass.initialise();
-
-	// Milestone probes intentionally run once after context creation. They are
-	// development diagnostics, not per-frame rendering logic.
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Point clouds are file-backed and reloadable at runtime. Milestone 12 makes
-	// the default dataset an ASCII PLY file while preserving the earlier text
-	// loader through the extension-based dispatcher.
 	std::filesystem::path const default_point_cloud_path = config::resources_path(kDefaultPointCloudResource);
 	std::filesystem::path const legacy_text_point_cloud_path = config::resources_path(kLegacyTextPointCloudResource);
 	std::array<char, 512> point_cloud_path_buffer{};
@@ -97,24 +116,18 @@ int main()
 
 	sfm::scene::PointCloudLoadResult point_cloud_load = sfm::scene::load_point_cloud_from_file(default_point_cloud_path);
 	bool using_loaded_point_cloud = point_cloud_load.succeeded;
-	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud
-		? std::move(point_cloud_load.cloud)
-		: sfm::scene::PointCloud::make_debug_cluster();
+	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud ? std::move(point_cloud_load.cloud) : sfm::scene::PointCloud::make_debug_cluster();
 	std::string active_point_cloud_source = using_loaded_point_cloud ? default_point_cloud_path.string() : "procedural fallback";
 	std::string last_reload_status = using_loaded_point_cloud ? "Initial point cloud loaded" : "Initial load failed; using procedural fallback";
 	int reload_count = 0;
 
-	// Milestone 10 loads camera poses from a checked-in resource file. The M9
-	// deterministic orbit remains a fallback so frustum rendering still works if
-	// the pose file is missing or malformed during development.
 	std::filesystem::path const default_camera_pose_path = config::resources_path(kDefaultCameraPoseResource);
 	sfm::scene::CameraPoseLoadResult camera_pose_load = sfm::scene::load_camera_poses_from_text_file(default_camera_pose_path);
 	bool const using_loaded_camera_poses = camera_pose_load.succeeded;
-	sfm::scene::CameraPoseSet const camera_poses = using_loaded_camera_poses
-		? std::move(camera_pose_load.poses)
-		: sfm::scene::CameraPoseSet::make_debug_orbit();
+	sfm::scene::CameraPoseSet const camera_poses = using_loaded_camera_poses ? std::move(camera_pose_load.poses) : sfm::scene::CameraPoseSet::make_debug_orbit();
 	std::string const active_camera_pose_source = using_loaded_camera_poses ? default_camera_pose_path.string() : "procedural fallback";
 
+	sfm::gfx::PointCloudRenderSettings point_settings{};
 	sfm::gfx::Renderer renderer;
 	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
 
@@ -123,8 +136,7 @@ int main()
 
 	while (!glfwWindowShouldClose(window)) {
 		sfm::core::FrameTiming const frame_timing = frame_clock.tick();
-		auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(
-			std::chrono::duration<float>(frame_timing.delta_seconds));
+		auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(frame_timing.delta_seconds));
 
 		glfwPollEvents();
 		ImGuiIO const& io = ImGui::GetIO();
@@ -142,14 +154,12 @@ int main()
 		int framebuffer_width = 0;
 		int framebuffer_height = 0;
 		glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
-		if (framebuffer_width > 0 && framebuffer_height > 0) {
-			float const aspect = static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height);
-			camera.SetAspect(aspect);
-		}
+		if (framebuffer_width > 0 && framebuffer_height > 0)
+			camera.SetAspect(static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height));
 
 		window_manager.NewImGuiFrame();
 		clear_pass.render(framebuffer_width, framebuffer_height);
-		renderer.render(camera.GetWorldToClipMatrix());
+		renderer.render(camera.GetWorldToClipMatrix(), point_settings);
 
 		if (ImGui::Begin("Sandbox status")) {
 			ImGui::TextUnformatted("SfM Visualization Sandbox");
@@ -160,8 +170,11 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 12: PLY point cloud import and dataset statistics");
+			ImGui::TextUnformatted("Milestone 13: Point-cloud inspection controls and UX polish");
 			draw_point_cloud_statistics(point_cloud.statistics());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Point display");
+			draw_point_controls(point_settings);
 			ImGui::Separator();
 			ImGui::TextUnformatted("Camera poses");
 			ImGui::Text("Camera pose source: %s", active_camera_pose_source.c_str());
@@ -197,13 +210,11 @@ int main()
 				}
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset to PLY sample")) {
+			if (ImGui::Button("Reset to PLY sample"))
 				copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
-			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset to text sample")) {
+			if (ImGui::Button("Reset to text sample"))
 				copy_path_to_buffer(point_cloud_path_buffer, legacy_text_point_cloud_path);
-			}
 			ImGui::Text("Active source: %s", using_loaded_point_cloud ? active_point_cloud_source.c_str() : "procedural fallback");
 			ImGui::Text("Last reload: %s", last_reload_status.c_str());
 			ImGui::Text("Successful reloads: %d", reload_count);
@@ -215,19 +226,15 @@ int main()
 			ImGui::TextUnformatted("Renderer status");
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
 			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
+			ImGui::Text("Bounds line vertices: %d", renderer.bounds_line_vertex_count());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Milestone 3 regression: ShaderProgram cache");
 			ImGui::Text("Shader probe: %s", shader_program_probe.passed ? "passed" : "failed");
-			for (std::string const& message : shader_program_probe.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
 			ImGui::TextUnformatted("Milestone 2 regression: GPU RAII ownership");
 			ImGui::Text("Ownership probe: %s", ownership_probe.passed ? "passed" : "failed");
-			for (std::string const& message : ownership_probe.messages)
-				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Controls: WASD/QE move, left mouse drag look, F2 UI, F3 logs, F11 fullscreen, Esc quit");
 		}
