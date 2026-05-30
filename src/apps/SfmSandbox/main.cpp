@@ -262,7 +262,13 @@ int main()
 			ImGui::Separator();
 			ImGui::TextUnformatted("Surface mesh");
 			ImGui::Checkbox("Show surface mesh", &show_surface);
-			ImGui::ColorEdit3("Surface colour", &surface_colour.x);
+			if (ImGui::ColorEdit3("Surface colour", &surface_colour.x)) {
+				sfm::gfx::SurfaceRendererResult colour_update = surface_renderer.reload(surface_mesh, surface_colour);
+				if (colour_update.succeeded)
+					surface_renderer_result = std::move(colour_update);
+				else
+					last_surface_reload_status = "Surface colour update failed; previous surface kept";
+			}
 			if (ImGui::Button("Rebuild surface colour"))
 				surface_renderer_result = surface_renderer.reload(surface_mesh, surface_colour);
 			draw_surface_statistics(surface_statistics);
