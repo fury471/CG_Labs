@@ -1,6 +1,7 @@
 #include "CameraPoseLoader.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -18,8 +19,6 @@ namespace
 
 bool parse_float_token(std::string const& token, float& value)
 {
-	// Keep parsing behavior aligned with PointCloudLoader: portable across the
-	// CI standard libraries and independent of the user's system locale.
 	std::istringstream stream{ token };
 	stream.imbue(std::locale::classic());
 	stream >> std::noskipws >> value;
@@ -68,7 +67,6 @@ std::vector<std::string> parse_tokens(std::string line)
 std::vector<float> parse_numeric_fields(std::string line)
 {
 	std::replace(line.begin(), line.end(), ',', ' ');
-
 	std::vector<float> values;
 	std::istringstream stream{ line };
 	std::string token;
@@ -110,9 +108,6 @@ bool can_build_view(glm::vec3 const& eye, glm::vec3 const& target) noexcept
 	float const length_squared = glm::dot(forward, forward);
 	if (length_squared < 1.0e-8f)
 		return false;
-
-	// Avoid the singular case where forward is almost parallel to the fixed up
-	// vector used by glm::lookAt.
 	glm::vec3 const direction = glm::normalize(forward);
 	float const parallel = std::abs(glm::dot(direction, glm::vec3{ 0.0f, 1.0f, 0.0f }));
 	return parallel < 0.995f;
@@ -150,9 +145,6 @@ glm::mat4 colmap_world_to_camera_to_internal_camera_to_world(glm::quat qvec, glm
 	glm::mat3 const rotation_world_to_colmap_camera = glm::mat3_cast(qvec);
 	glm::mat3 const rotation_colmap_camera_to_world = glm::transpose(rotation_world_to_colmap_camera);
 
-	// COLMAP/OpenCV camera axes: +X right, +Y down, +Z forward.
-	// Sandbox graphics axes:   +X right, +Y up,   -Z forward.
-	// This diagonal basis change flips Y and Z before mapping into world space.
 	glm::mat3 const colmap_camera_from_internal_camera{
 		glm::vec3{ 1.0f, 0.0f, 0.0f },
 		glm::vec3{ 0.0f, -1.0f, 0.0f },
@@ -186,14 +178,11 @@ CameraPoseLoadResult load_camera_poses_from_text_file(std::filesystem::path cons
 	std::vector<CameraPose> poses;
 	std::string line;
 	std::size_t line_number = 0u;
-
 	while (std::getline(file, line)) {
 		++line_number;
-
 		auto const comment_begin = line.find('#');
 		if (comment_begin != std::string::npos)
 			line.erase(comment_begin);
-
 		line = trim(line);
 		if (line.empty())
 			continue;
@@ -222,15 +211,7 @@ CameraPoseLoadResult load_camera_poses_from_text_file(std::filesystem::path cons
 		glm::mat4 const world_to_camera = glm::lookAt(eye, target, glm::vec3{ 0.0f, 1.0f, 0.0f });
 		pose.camera_to_world = glm::inverse(world_to_camera);
 		pose.colour = normalize_colour(glm::vec3{ values[6], values[7], values[8] });
-		annotate_pose(pose,
-		              poses.size(),
-		              line_number,
-		              static_cast<int>(poses.size()),
-		              -1,
-		              path,
-		              result.source_format,
-		              result.source_convention,
-		              "text_pose_" + std::to_string(poses.size()));
+		annotate_pose(pose, poses.size(), line_number, static_cast<int>(poses.size()), -1, path, result.source_format, result.source_convention, "text_pose_" + std::to_string(poses.size()));
 		poses.push_back(std::move(pose));
 	}
 
@@ -238,7 +219,6 @@ CameraPoseLoadResult load_camera_poses_from_text_file(std::filesystem::path cons
 		add_message(result, "Camera pose load failed: file contained no valid poses");
 		return result;
 	}
-
 	result.succeeded = true;
 	result.poses = CameraPoseSet{ std::move(poses) };
 	add_message(result, "Loaded camera poses '" + path.string() + "'");
@@ -266,16 +246,16 @@ CameraPoseLoadResult load_camera_poses_from_colmap_images_file(std::filesystem::
 	std::string line;
 	std::size_t line_number = 0u;
 	bool expect_points2d_line = false;
-
 	while (std::getline(file, line)) {
 		++line_number;
 		std::string const raw_line = trim(line);
+		if (expect_points2d_line && raw_line.empty()) {
+			expect_points2d_line = false;
+			continue;
+		}
 		if (raw_line.empty() || raw_line.front() == '#')
 			continue;
-
 		if (expect_points2d_line) {
-			// COLMAP text images are stored as two non-comment lines per image. M14
-			// imports pose metadata only, so the POINTS2D line is deliberately skipped.
 			expect_points2d_line = false;
 			continue;
 		}
@@ -289,22 +269,8 @@ CameraPoseLoadResult load_camera_poses_from_colmap_images_file(std::filesystem::
 
 		int image_id = -1;
 		int camera_id = -1;
-		float qw = 0.0f;
-		float qx = 0.0f;
-		float qy = 0.0f;
-		float qz = 0.0f;
-		float tx = 0.0f;
-		float ty = 0.0f;
-		float tz = 0.0f;
-		bool const parsed = parse_int_token(tokens[0], image_id) &&
-		                    parse_float_token(tokens[1], qw) &&
-		                    parse_float_token(tokens[2], qx) &&
-		                    parse_float_token(tokens[3], qy) &&
-		                    parse_float_token(tokens[4], qz) &&
-		                    parse_float_token(tokens[5], tx) &&
-		                    parse_float_token(tokens[6], ty) &&
-		                    parse_float_token(tokens[7], tz) &&
-		                    parse_int_token(tokens[8], camera_id);
+		float qw = 0.0f, qx = 0.0f, qy = 0.0f, qz = 0.0f, tx = 0.0f, ty = 0.0f, tz = 0.0f;
+		bool const parsed = parse_int_token(tokens[0], image_id) && parse_float_token(tokens[1], qw) && parse_float_token(tokens[2], qx) && parse_float_token(tokens[3], qy) && parse_float_token(tokens[4], qz) && parse_float_token(tokens[5], tx) && parse_float_token(tokens[6], ty) && parse_float_token(tokens[7], tz) && parse_int_token(tokens[8], camera_id);
 		if (!parsed) {
 			++result.skipped_lines;
 			add_message(result, "Skipped COLMAP line " + std::to_string(line_number) + ": malformed numeric pose fields");
@@ -329,15 +295,7 @@ CameraPoseLoadResult load_camera_poses_from_colmap_images_file(std::filesystem::
 
 		float const t = static_cast<float>(poses.size() % 12u) / 11.0f;
 		pose.colour = glm::vec3{ 0.30f + 0.70f * t, 0.85f - 0.35f * t, 1.0f - 0.55f * t };
-		annotate_pose(pose,
-		              poses.size(),
-		              line_number,
-		              image_id,
-		              camera_id,
-		              path,
-		              result.source_format,
-		              result.source_convention,
-		              tokens[9]);
+		annotate_pose(pose, poses.size(), line_number, image_id, camera_id, path, result.source_format, result.source_convention, tokens[9]);
 		poses.push_back(std::move(pose));
 		expect_points2d_line = true;
 	}
@@ -346,7 +304,6 @@ CameraPoseLoadResult load_camera_poses_from_colmap_images_file(std::filesystem::
 		add_message(result, "COLMAP camera pose load failed: file contained no valid image poses");
 		return result;
 	}
-
 	result.succeeded = true;
 	result.poses = CameraPoseSet{ std::move(poses) };
 	add_message(result, "Loaded COLMAP image poses '" + path.string() + "'");
@@ -366,7 +323,6 @@ CameraPoseLoadResult load_camera_poses_from_file(std::filesystem::path const& pa
 		return load_camera_poses_from_colmap_images_file(path);
 	if (extension == ".txt" || extension == ".poses" || extension == ".cam")
 		return load_camera_poses_from_text_file(path);
-
 	CameraPoseLoadResult result{};
 	add_message(result, "Camera pose load failed: unsupported file extension '" + extension + "'");
 	return result;
