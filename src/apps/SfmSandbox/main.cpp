@@ -1,10 +1,12 @@
 #include "config.hpp"
 #include "core/Bonobo.h"
 #include "sandbox/core/FrameClock.hpp"
+#include "sandbox/core/FrameProfiler.hpp"
 #include "sandbox/gfx/ClearPass.hpp"
 #include "sandbox/gfx/ImagePlaneRenderer.hpp"
 #include "sandbox/gfx/OwnershipProbe.hpp"
 #include "sandbox/gfx/Renderer.hpp"
+#include "sandbox/gfx/RenderTarget.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
 #include "sandbox/gfx/SurfaceRenderer.hpp"
 #include "sandbox/scene/CameraPose.hpp"
@@ -81,6 +83,23 @@ void draw_image_statistics(sfm::scene::ImageResource const& image)
 	ImGui::Text("Image pixels: %zu", image.pixel_count());
 	ImGui::Text("Image format: %s", image.source_format.c_str());
 	ImGui::Text("Image source: %s", image.source_file.c_str());
+}
+
+void draw_render_target_status(sfm::gfx::RenderTargetStatus const& status)
+{
+	ImGui::Text("Offscreen target: %s", status.ready ? "complete" : "not ready");
+	ImGui::Text("Target size: %d x %d", status.width, status.height);
+	ImGui::Text("Framebuffer id: %u", status.framebuffer_id);
+	ImGui::Text("Colour texture id: %u", status.colour_texture_id);
+	ImGui::Text("Rebuilds after resize: %d", status.rebuild_count);
+	ImGui::TextWrapped("Framebuffer status: %s", status.message.c_str());
+}
+
+void draw_frame_profiler(sfm::core::FrameProfiler const& profiler)
+{
+	ImGui::Text("Last completed CPU frame total: %.3f ms", profiler.total_milliseconds());
+	for (sfm::core::TimedPass const& pass : profiler.passes())
+		ImGui::BulletText("%s: %.3f ms", pass.name.c_str(), pass.milliseconds);
 }
 
 char const* colour_mode_label(sfm::gfx::PointColourMode mode)
@@ -185,6 +204,8 @@ int main()
 	}
 
 	sfm::core::FrameClock frame_clock;
+	sfm::core::FrameProfiler frame_profiler;
+	sfm::gfx::RenderTarget offscreen_probe;
 	sfm::gfx::ClearPass clear_pass({ 0.035f, 0.055f, 0.090f, 1.0f });
 	clear_pass.initialise();
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
@@ -255,35 +276,52 @@ int main()
 	float ui_scale = 1.35f;
 
 	while (!glfwWindowShouldClose(window)) {
+		frame_profiler.begin_frame();
 		sfm::core::FrameTiming const frame_timing = frame_clock.tick();
 		auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(frame_timing.delta_seconds));
 
-		glfwPollEvents();
-		ImGuiIO& io = ImGui::GetIO();
-		io.FontGlobalScale = ui_scale;
-		input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
-		input_handler.Advance();
-		camera.Update(delta_time, input_handler);
+		{
+			auto scope = frame_profiler.scope("Input and camera update");
+			glfwPollEvents();
+			ImGuiIO& io = ImGui::GetIO();
+			io.FontGlobalScale = ui_scale;
+			input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
+			input_handler.Advance();
+			camera.Update(delta_time, input_handler);
 
-		if (input_handler.GetKeycodeState(GLFW_KEY_F2) & JUST_RELEASED)
-			show_gui = !show_gui;
-		if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
-			show_logs = !show_logs;
-		if (input_handler.GetKeycodeState(GLFW_KEY_F11) & JUST_RELEASED)
-			window_manager.ToggleFullscreenStatusForWindow(window);
+			if (input_handler.GetKeycodeState(GLFW_KEY_F2) & JUST_RELEASED)
+				show_gui = !show_gui;
+			if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
+				show_logs = !show_logs;
+			if (input_handler.GetKeycodeState(GLFW_KEY_F11) & JUST_RELEASED)
+				window_manager.ToggleFullscreenStatusForWindow(window);
+		}
 
 		int framebuffer_width = 0;
 		int framebuffer_height = 0;
-		glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
-		if (framebuffer_width > 0 && framebuffer_height > 0)
-			camera.SetAspect(static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height));
+		{
+			auto scope = frame_profiler.scope("Resize and render-target validation");
+			glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+			if (framebuffer_width > 0 && framebuffer_height > 0) {
+				camera.SetAspect(static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height));
+				offscreen_probe.ensure_size(framebuffer_width, framebuffer_height);
+			}
+		}
 
-		window_manager.NewImGuiFrame();
-		clear_pass.render(framebuffer_width, framebuffer_height);
-		renderer.render(camera.GetWorldToClipMatrix(), point_settings);
-		surface_renderer.render(camera.GetWorldToClipMatrix(), show_surface);
-		image_plane_renderer.render(camera.GetWorldToClipMatrix(), show_image_plane);
+		{
+			auto scope = frame_profiler.scope("ImGui frame setup");
+			window_manager.NewImGuiFrame();
+		}
+		{
+			auto scope = frame_profiler.scope("Scene clear and draw");
+			clear_pass.render(framebuffer_width, framebuffer_height);
+			renderer.render(camera.GetWorldToClipMatrix(), point_settings);
+			surface_renderer.render(camera.GetWorldToClipMatrix(), show_surface);
+			image_plane_renderer.render(camera.GetWorldToClipMatrix(), show_image_plane);
+		}
 
+		{
+			auto scope = frame_profiler.scope("Status panel UI");
 		if (ImGui::Begin("Sandbox status")) {
 			ImGui::TextUnformatted("SfM Visualization Sandbox");
 			ImGui::Separator();
@@ -294,7 +332,12 @@ int main()
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 17: Imagery relationships and projection debugging");
+			ImGui::TextUnformatted("Milestone 18: Render targets, profiling and performance baseline");
+			draw_render_target_status(offscreen_probe.status());
+			draw_frame_profiler(frame_profiler);
+			ImGui::TextWrapped("Baseline scene: sample PLY point cloud + sample surface OBJ + sample PPM image plane + eight sample camera frustums.");
+			ImGui::TextWrapped("No optimization claim is made here; these numbers are a reproducible baseline for later comparison.");
+			ImGui::Separator();
 			draw_point_cloud_statistics(point_cloud.statistics());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Camera image association");
@@ -511,11 +554,19 @@ int main()
 			ImGui::TextUnformatted("Controls: WASD/QE move, left mouse drag look, F2 UI, F3 logs, F11 fullscreen, Esc quit");
 		}
 		ImGui::End();
+		}
 
-		if (show_logs)
-			Log::View::Render();
-		window_manager.RenderImGuiFrame(show_gui);
-		glfwSwapBuffers(window);
+		{
+			auto scope = frame_profiler.scope("Log and ImGui submit");
+			if (show_logs)
+				Log::View::Render();
+			window_manager.RenderImGuiFrame(show_gui);
+		}
+		{
+			auto scope = frame_profiler.scope("Swap buffers");
+			glfwSwapBuffers(window);
+		}
+		frame_profiler.end_frame();
 	}
 
 	window_manager.DestroyWindow(window);
