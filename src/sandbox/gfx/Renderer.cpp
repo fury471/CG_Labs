@@ -321,32 +321,12 @@ RendererBuildResult Renderer::initialise_camera_pose_pipeline(sfm::scene::Camera
 	m_camera_vertex_array.reset();
 	m_camera_vertex_buffer.reset();
 
-	if (camera_poses.empty()) {
-		add_message(result, "Camera pose visualization skipped: pose set is empty");
+	RendererBuildResult reload_result = reload_camera_poses(camera_poses);
+	append_messages(result, reload_result);
+	if (!reload_result.succeeded)
 		return result;
-	}
 
-	std::vector<DebugVertex> const camera_vertices = build_camera_pose_vertices(camera_poses);
-	if (camera_vertices.empty()) {
-		add_message(result, "Camera pose visualization failed: no line vertices were generated");
-		return result;
-	}
-
-	m_camera_line_vertex_count = static_cast<GLsizei>(camera_vertices.size());
-	m_camera_vertex_buffer = Buffer{ "SfmSandbox camera pose vertex buffer" };
-	if (!m_camera_vertex_buffer.set_storage(std::span<DebugVertex const>{ camera_vertices.data(), camera_vertices.size() })) {
-		add_message(result, "Camera pose vertex-buffer upload failed");
-		return result;
-	}
-	m_camera_vertex_array = VertexArray{ "SfmSandbox camera pose vertex array" };
-	if (!configure_vertex_layout(m_camera_vertex_array, m_camera_vertex_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
-		add_message(result, "Camera pose vertex-array layout failed");
-		return result;
-	}
-
-	m_camera_pose_ready = true;
 	result.succeeded = true;
-	add_message(result, "Camera frustum and trajectory GPU layout configured");
 	return result;
 }
 
@@ -439,6 +419,47 @@ RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& p
 	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
 	if (m_bounds_ready)
 		add_message(result, "Point cloud bounds GPU layout configured");
+	result.succeeded = true;
+	return result;
+}
+
+RendererBuildResult Renderer::reload_camera_poses(sfm::scene::CameraPoseSet const& camera_poses)
+{
+	RendererBuildResult result{};
+	if (!m_grid_ready) {
+		add_message(result, "Camera pose reload failed: grid pipeline is not ready");
+		return result;
+	}
+	if (camera_poses.empty()) {
+		add_message(result, "Camera pose reload failed: pose set is empty; previous poses kept");
+		return result;
+	}
+
+	std::vector<DebugVertex> const camera_vertices = build_camera_pose_vertices(camera_poses);
+	if (camera_vertices.empty()) {
+		add_message(result, "Camera pose reload failed: no line vertices were generated; previous poses kept");
+		return result;
+	}
+
+	Buffer replacement_buffer{ "SfmSandbox camera pose vertex buffer" };
+	if (!replacement_buffer.set_storage(std::span<DebugVertex const>{ camera_vertices.data(), camera_vertices.size() })) {
+		add_message(result, "Camera pose vertex-buffer upload failed; previous poses kept");
+		return result;
+	}
+	VertexArray replacement_vertex_array{ "SfmSandbox camera pose vertex array" };
+	if (!configure_vertex_layout(replacement_vertex_array, replacement_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
+		add_message(result, "Camera pose vertex-array layout failed; previous poses kept");
+		return result;
+	}
+
+	m_camera_vertex_buffer = std::move(replacement_buffer);
+	m_camera_vertex_array = std::move(replacement_vertex_array);
+	m_camera_line_vertex_count = static_cast<GLsizei>(camera_vertices.size());
+	m_camera_pose_ready = true;
+	m_ready = m_grid_ready && m_point_count > 0;
+
+	add_message(result, "Camera pose GPU resources rebuilt from loaded data");
+	add_message(result, "Camera frustum and trajectory GPU layout configured");
 	result.succeeded = true;
 	return result;
 }
