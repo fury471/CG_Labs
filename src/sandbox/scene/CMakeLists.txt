@@ -2,9 +2,11 @@ add_library (sfm_sandbox_scene STATIC)
 target_sources (
 	sfm_sandbox_scene
 	PUBLIC
-		[[PointCloud.hpp]]
+		"PointCloud.hpp"
+		"PointCloudLoader.hpp"
 	PRIVATE
-		[[PointCloud.cpp]]
+		"PointCloud.cpp"
+		"PointCloudLoader.cpp"
 )
 target_include_directories (
 	sfm_sandbox_scene
