@@ -1,77 +1,78 @@
 #include "PointCloudLoader.hpp"
 
 #include <algorithm>
-#include <locale>
 #include <cmath>
 #include <fstream>
+#include <locale>
 #include <sstream>
 #include <string_view>
+#include <utility>
 
 namespace sfm::scene
 {
 namespace
 {
 
-	bool parse_float_token(std::string const& token, float& value)
-	{
-		std::istringstream stream{ token };
-		stream.imbue(std::locale::classic());
+bool parse_float_token(std::string const& token, float& value)
+{
+	// Floating-point std::from_chars is not implemented consistently across the
+	// project's CI standard libraries yet. A classic-locale stream parser is
+	// slower, but it is portable and correct for the small milestone text files.
+	std::istringstream stream{ token };
+	stream.imbue(std::locale::classic());
 
-		stream >> value;
-		stream >> std::ws;
+	stream >> value;
+	stream >> std::ws;
 
-		return !stream.fail() && stream.eof() && std::isfinite(value);
-	}
+	return !stream.fail() && stream.eof() && std::isfinite(value);
+}
 
-	void add_message(PointCloudLoadResult& result, std::string message)
-	{
-		result.messages.emplace_back(std::move(message));
-	}
+void add_message(PointCloudLoadResult& result, std::string message)
+{
+	result.messages.emplace_back(std::move(message));
+}
 
-	std::string trim(std::string_view text)
-	{
-		auto const first = text.find_first_not_of(" \t\r\n");
-		if (first == std::string_view::npos)
+std::string trim(std::string_view text)
+{
+	auto const first = text.find_first_not_of(" \t\r\n");
+	if (first == std::string_view::npos)
+		return {};
+	auto const last = text.find_last_not_of(" \t\r\n");
+	return std::string{ text.substr(first, last - first + 1u) };
+}
+
+std::vector<float> parse_numeric_fields(std::string line)
+{
+	// Treat commas as separators too. This keeps the accepted format practical
+	// for quick CSV-style point dumps without adding a full CSV parser.
+	std::replace(line.begin(), line.end(), ',', ' ');
+
+	std::vector<float> values;
+	std::istringstream stream{ line };
+	std::string token;
+	while (stream >> token) {
+		float value = 0.0f;
+		if (!parse_float_token(token, value))
 			return {};
-		auto const last = text.find_last_not_of(" \t\r\n");
-		return std::string{ text.substr(first, last - first + 1u) };
+		values.push_back(value);
 	}
+	return values;
+}
 
-	std::vector<float> parse_numeric_fields(std::string line)
-	{
-		// Treat commas as separators too. This keeps the accepted format practical
-		// for quick CSV-style point dumps without adding a full CSV parser.
-		std::replace(line.begin(), line.end(), ',', ' ');
+bool position_is_valid(glm::vec3 const& position) noexcept
+{
+	return std::isfinite(position.x) && std::isfinite(position.y) && std::isfinite(position.z);
+}
 
-		std::vector<float> values;
-		std::istringstream stream{ line };
-		std::string token;
-		while (stream >> token) {
-			float value = 0.0f;
-			char const* first = token.data();
-			char const* last = token.data() + token.size();
-			float value = 0.0f;
-			if (!parse_float_token(token, value))
-				return {};
-			values.push_back(value);
-		}
-		return values;
-	}
-
-	bool position_is_valid(glm::vec3 const& position) noexcept
-	{
-		return std::isfinite(position.x) && std::isfinite(position.y) && std::isfinite(position.z);
-	}
-
-	glm::vec3 normalize_colour(glm::vec3 colour) noexcept
-	{
-		// If any component is larger than 1, interpret the triplet as byte-style RGB.
-		// Otherwise keep normalized colour values. Clamp in both cases so accidental
-		// minor out-of-range values do not propagate to shaders.
-		if (colour.r > 1.0f || colour.g > 1.0f || colour.b > 1.0f)
-			colour /= 255.0f;
-		return glm::clamp(colour, glm::vec3{ 0.0f }, glm::vec3{ 1.0f });
-	}
+glm::vec3 normalize_colour(glm::vec3 colour) noexcept
+{
+	// If any component is larger than 1, interpret the triplet as byte-style RGB.
+	// Otherwise keep normalized colour values. Clamp in both cases so accidental
+	// minor out-of-range values do not propagate to shaders.
+	if (colour.r > 1.0f || colour.g > 1.0f || colour.b > 1.0f)
+		colour /= 255.0f;
+	return glm::clamp(colour, glm::vec3{ 0.0f }, glm::vec3{ 1.0f });
+}
 
 } // namespace
 
