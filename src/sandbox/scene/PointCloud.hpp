@@ -2,6 +2,7 @@
 
 #include <glm/glm.hpp>
 
+#include <cstddef>
 #include <span>
 #include <vector>
 
