@@ -1,7 +1,7 @@
 # Milestone 11 Record: Test and Validation Foundation
 
 - **Milestone:** 11
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m11-test-validation`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -49,7 +49,24 @@ ctest --test-dir <build-dir> --build-config <config> --output-on-failure
 
 after the build step.
 
-## Local validation required
+## Local validation status
+
+The developer reported successful completion of the clean build, CTest run and manual regression checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- `ctest --test-dir build --output-on-failure` passed;
+- `sfm_sandbox_scene_tests` passed;
+- screenshot of `SfmSandbox` running after M11;
+- existing point-cloud loading/reload remains functional;
+- existing camera-pose loading remains functional;
+- renderer status is ready;
+- Milestone 3 shader probe remains passed;
+- Milestone 2 ownership probe remains passed;
+- developer confirmed `EDAF80_Assignment1` still launches and works;
+- developer confirmed `EDAN35_Assignment2` still launches.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -66,17 +83,17 @@ Manual checklist:
 
 | Check | Result |
 |---|---|
-| Clean configure succeeds | Pending |
-| Clean build succeeds | Pending |
-| `ctest --test-dir build --output-on-failure` succeeds | Pending |
-| `sfm_sandbox_scene_tests` reports all tests passed | Pending |
-| Existing `EDAF80_Assignment1` launches and interaction still works | Pending |
-| Existing `EDAN35_Assignment2` launches | Pending |
-| `SfmSandbox` launches | Pending |
-| Existing point-cloud loading/reload still works | Pending |
-| Existing camera-pose loading still works | Pending |
-| Milestone 3 shader probe still passes | Pending |
-| Milestone 2 ownership probe still passes | Pending |
+| Clean configure succeeds | Passed — developer confirmed |
+| Clean build succeeds | Passed — developer confirmed |
+| `ctest --test-dir build --output-on-failure` succeeds | Passed — developer confirmed |
+| `sfm_sandbox_scene_tests` reports all tests passed | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches and interaction still works | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` launches | Passed — screenshot confirmed |
+| Existing point-cloud loading/reload still works | Passed — screenshot confirmed |
+| Existing camera-pose loading still works | Passed — screenshot confirmed |
+| Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
 
 ## Known limitations
 
@@ -85,6 +102,17 @@ Manual checklist:
 - Coordinate-convention math tests are scheduled for a later milestone.
 - Parser tests do not yet cover PLY, COLMAP, Bundler, OpenMVG or full matrix/quaternion formats because those loaders do not exist yet.
 
-## Completion gate
+## Completion assessment
 
-Milestone 11 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Test target infrastructure exists | Passed — source implementation |
+| Point-cloud parser tests exist | Passed — source implementation |
+| Camera-pose parser tests exist | Passed — source implementation |
+| Tests run locally through CTest | Passed — developer confirmed |
+| CI workflows run CTest after build | Passed — workflow implementation; pending PR CI confirmation |
+| Parser behavior is documented | Passed — `docs/sandbox/parser-validation.md` |
+| Legacy launch checks pass | Passed — developer confirmed |
+| Project goal is documented as a real extensible tool, not a throwaway prototype | Passed — README, roadmap and standards updated |
+
+Milestone 11 is complete and may be merged into `feature/sfm-visualization-sandbox` after CI passes.
