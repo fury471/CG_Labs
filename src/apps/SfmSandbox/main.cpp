@@ -4,6 +4,7 @@
 #include "sandbox/core/FrameProfiler.hpp"
 #include "sandbox/gfx/ClearPass.hpp"
 #include "sandbox/gfx/ImagePlaneRenderer.hpp"
+#include "sandbox/gfx/InstancedMarkerRenderer.hpp"
 #include "sandbox/gfx/OwnershipProbe.hpp"
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/RenderTarget.hpp"
@@ -102,6 +103,17 @@ void draw_frame_profiler(sfm::core::FrameProfiler const& profiler)
 		ImGui::BulletText("%s: %.3f ms", pass.name.c_str(), pass.milliseconds);
 }
 
+void draw_marker_stress_statistics(sfm::gfx::MarkerStressStats const& statistics)
+{
+	ImGui::Text("Stress markers: %d", statistics.marker_count);
+	ImGui::Text("Active marker draw calls: %d", statistics.draw_calls);
+	ImGui::Text("Reference non-instanced draw calls: %d", statistics.reference_draw_calls);
+	ImGui::Text("Instanced draw calls: %d", statistics.instanced_draw_calls);
+	ImGui::Text("Marker vertices drawn: %d", statistics.vertices_drawn);
+	ImGui::Text("Draw-call reduction: %d", statistics.reference_draw_calls - statistics.instanced_draw_calls);
+	ImGui::Text("Active path: %s", statistics.using_instancing ? "instanced" : "reference non-instanced");
+}
+
 char const* colour_mode_label(sfm::gfx::PointColourMode mode)
 {
 	switch (mode) {
@@ -168,10 +180,11 @@ void draw_camera_pose_metadata(sfm::scene::CameraPoseSet const& camera_poses, in
 
 void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& statistics,
                                     sfm::gfx::SurfaceRendererStats const& surface_statistics,
-                                    sfm::gfx::ImagePlaneRendererStats const& image_statistics)
+                                    sfm::gfx::ImagePlaneRendererStats const& image_statistics,
+                                    sfm::gfx::MarkerStressStats const& marker_statistics)
 {
 	ImGui::Text("Submitted items: %d", statistics.submitted_items);
-	ImGui::Text("Draw calls: %d + surface %d + image %d", statistics.draw_calls, surface_statistics.draw_calls, image_statistics.draw_calls);
+	ImGui::Text("Draw calls: %d + surface %d + image %d + markers %d", statistics.draw_calls, surface_statistics.draw_calls, image_statistics.draw_calls, marker_statistics.draw_calls);
 	ImGui::Text("Program binds: %d", statistics.program_binds);
 	ImGui::Text("Vertex-array binds: %d", statistics.vertex_array_binds);
 	ImGui::Text("Line vertices drawn: %d", statistics.line_vertices_drawn);
@@ -180,6 +193,7 @@ void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& sta
 	ImGui::Text("Surface triangles drawn: %d", surface_statistics.triangles_drawn);
 	ImGui::Text("Image-plane vertices drawn: %d", image_statistics.vertices_drawn);
 	ImGui::Text("Image-plane triangles drawn: %d", image_statistics.triangles_drawn);
+	ImGui::Text("Marker vertices drawn: %d", marker_statistics.vertices_drawn);
 }
 
 } // namespace
@@ -261,6 +275,8 @@ int main()
 	float image_plane_distance = 0.65f;
 	float image_plane_height = 0.70f;
 
+	sfm::gfx::MarkerStressSettings marker_settings{};
+
 	sfm::gfx::PointCloudRenderSettings point_settings{};
 	sfm::gfx::Renderer renderer;
 	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
@@ -270,6 +286,8 @@ int main()
 	auto const poses_for_image = camera_poses.poses();
 	glm::mat4 image_camera_to_world = poses_for_image.empty() ? glm::mat4{ 1.0f } : poses_for_image[0].camera_to_world;
 	sfm::gfx::ImagePlaneRendererResult image_plane_result = image_plane_renderer.reload(associated_image, image_camera_to_world, image_plane_distance, image_plane_height);
+	sfm::gfx::InstancedMarkerRenderer marker_renderer;
+	sfm::gfx::MarkerRendererResult marker_renderer_result = marker_renderer.rebuild(marker_settings);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -318,6 +336,7 @@ int main()
 			renderer.render(camera.GetWorldToClipMatrix(), point_settings);
 			surface_renderer.render(camera.GetWorldToClipMatrix(), show_surface);
 			image_plane_renderer.render(camera.GetWorldToClipMatrix(), show_image_plane);
+			marker_renderer.render(camera.GetWorldToClipMatrix(), marker_settings);
 		}
 
 		{
@@ -332,11 +351,27 @@ int main()
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 18: Render targets, profiling and performance baseline");
+			ImGui::TextUnformatted("Milestone 19: Instancing and workload stress scenes");
+			bool marker_rebuild_requested = false;
+			marker_rebuild_requested |= ImGui::Checkbox("Show marker stress scene", &marker_settings.visible);
+			ImGui::Checkbox("Use instanced marker path", &marker_settings.use_instancing);
+			marker_rebuild_requested |= ImGui::SliderInt("Stress marker count", &marker_settings.marker_count, 1, 5000);
+			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker radius", &marker_settings.radius, 0.5f, 10.0f, "%.2f");
+			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker height", &marker_settings.height, -2.0f, 4.0f, "%.2f");
+			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker scale", &marker_settings.marker_scale, 0.01f, 0.25f, "%.3f");
+			if (marker_rebuild_requested || ImGui::Button("Rebuild marker stress scene"))
+				marker_renderer_result = marker_renderer.rebuild(marker_settings);
+			ImGui::Text("Marker renderer: %s", marker_renderer.ready() ? "ready" : "not ready");
+			draw_marker_stress_statistics(marker_renderer.frame_statistics());
+			ImGui::TextWrapped("M19 comparison: reference mode issues one draw call per marker; instanced mode draws the same marker workload with one instanced draw call.");
+			for (std::string const& message : marker_renderer_result.messages)
+				ImGui::BulletText("%s", message.c_str());
+			ImGui::Separator();
+			ImGui::TextUnformatted("M18 render-target and profiling baseline");
 			draw_render_target_status(offscreen_probe.status());
 			draw_frame_profiler(frame_profiler);
-			ImGui::TextWrapped("Baseline scene: sample PLY point cloud + sample surface OBJ + sample PPM image plane + eight sample camera frustums.");
-			ImGui::TextWrapped("No optimization claim is made here; these numbers are a reproducible baseline for later comparison.");
+			ImGui::TextWrapped("Baseline scene: sample PLY point cloud + sample surface OBJ + sample PPM image plane + eight sample camera frustums + M19 marker stress scene.");
+			ImGui::TextWrapped("Timing results are reported honestly; M19 should demonstrate or refute the expected instancing improvement on local hardware.");
 			ImGui::Separator();
 			draw_point_cloud_statistics(point_cloud.statistics());
 			ImGui::Separator();
@@ -539,10 +574,11 @@ int main()
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
 			ImGui::Text("Surface renderer: %s", surface_renderer.ready() ? "ready" : "not ready");
 			ImGui::Text("Image-plane renderer: %s", image_plane_renderer.ready() ? "ready" : "not ready");
+			ImGui::Text("Marker renderer: %s", marker_renderer.ready() ? "ready" : "not ready");
 			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
 			ImGui::Text("Bounds line vertices: %d", renderer.bounds_line_vertex_count());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
-			draw_renderer_frame_statistics(renderer.frame_statistics(), surface_renderer.frame_statistics(), image_plane_renderer.frame_statistics());
+			draw_renderer_frame_statistics(renderer.frame_statistics(), surface_renderer.frame_statistics(), image_plane_renderer.frame_statistics(), marker_renderer.frame_statistics());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
