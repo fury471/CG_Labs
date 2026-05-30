@@ -212,6 +212,22 @@ A milestone is done only when:
 - Avoid commits mixing unrelated formatting, refactoring and behavioural changes.
 - Never commit generated `build/` output or downloaded dependency build products unless a deliberate packaging decision is recorded.
 
+### 9.1 AI-assisted intermediate commit policy
+
+AI-assisted online edits may create several small commits before a milestone is locally validated. To avoid consuming GitHub Actions minutes or flooding status checks during that exploratory phase, every AI-created intermediate implementation or documentation commit must include one GitHub Actions skip marker in the commit message, preferably:
+
+```text
+[skip ci]
+```
+
+Example:
+
+```text
+scene: add OBJ mesh loader [skip ci]
+```
+
+The final pull request is still opened normally after local validation. Human-authored milestone commits may omit the marker when CI should run immediately.
+
 ## 10. Commercial and legal standards
 
 The project may be designed for eventual commercial extension, but it is not considered distributable as a commercial product until:
