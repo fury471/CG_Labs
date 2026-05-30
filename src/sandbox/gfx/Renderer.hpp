@@ -3,6 +3,7 @@
 #include "Buffer.hpp"
 #include "ShaderProgram.hpp"
 #include "VertexArray.hpp"
+#include "sandbox/scene/PointCloud.hpp"
 
 #include <glm/glm.hpp>
 
@@ -25,9 +26,9 @@ struct RendererBuildResult final
 
 /// Owns the GPU state needed by the sandbox renderer.
 ///
-/// Milestone 5 turns the renderer into a small 3D visualization viewport: the
-/// app provides a camera transform, while the renderer owns grid/axes geometry,
-/// shader state and draw submission.
+/// Milestone 6 adds the first SfM-like payload path: a CPU-side point cloud is
+/// uploaded to GPU memory and drawn as coloured points through the same camera
+/// transform used by the grid/axes reference primitive.
 class Renderer final
 {
 public:
@@ -39,9 +40,9 @@ public:
 	Renderer(Renderer&&) noexcept = default;
 	Renderer& operator=(Renderer&&) noexcept = default;
 
-	/// Builds the first world-space visualization pipeline. Call only after an
-	/// OpenGL context is current and before the context is destroyed.
-	[[nodiscard]] RendererBuildResult initialise();
+	/// Builds the world-space visualization pipelines. Call only after an OpenGL
+	/// context is current and before the context is destroyed.
+	[[nodiscard]] RendererBuildResult initialise(sfm::scene::PointCloud const& point_cloud);
 
 	/// Draws the current renderer contents from the supplied camera transform.
 	/// `world_to_clip` is usually camera.GetWorldToClipMatrix().
@@ -49,13 +50,21 @@ public:
 
 	[[nodiscard]] bool ready() const noexcept { return m_ready; }
 	[[nodiscard]] GLsizei line_vertex_count() const noexcept { return m_line_vertex_count; }
+	[[nodiscard]] GLsizei point_count() const noexcept { return m_point_count; }
 
 private:
-	ShaderProgram m_program{};
-	UniformLocation m_world_to_clip_uniform{};
-	VertexArray m_vertex_array{};
-	Buffer m_vertex_buffer{};
+	ShaderProgram m_grid_program{};
+	UniformLocation m_grid_world_to_clip_uniform{};
+	VertexArray m_grid_vertex_array{};
+	Buffer m_grid_vertex_buffer{};
 	GLsizei m_line_vertex_count{ 0 };
+
+	ShaderProgram m_point_program{};
+	UniformLocation m_point_world_to_clip_uniform{};
+	VertexArray m_point_vertex_array{};
+	Buffer m_point_vertex_buffer{};
+	GLsizei m_point_count{ 0 };
+
 	bool m_ready{ false };
 };
 

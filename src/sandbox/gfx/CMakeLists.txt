@@ -35,6 +35,7 @@ target_link_libraries (
 	sfm_sandbox_gfx
 	PUBLIC
 		sfm_sandbox_options
+		sfm_sandbox_scene
 		glad_gl_core_46
 		glm::glm
 )

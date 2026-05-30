@@ -5,6 +5,7 @@
 #include "sandbox/gfx/OwnershipProbe.hpp"
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
+#include "sandbox/scene/PointCloud.hpp"
 
 #include <imgui.h>
 
@@ -49,10 +50,11 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Milestone 5 turns the renderer into a small 3D viewport: the app provides
-	// the camera transform and the renderer owns world-space grid/axes drawing.
+	// Milestone 6 introduces the first CPU-side point-cloud model. The renderer
+	// receives immutable point data at setup and uploads it to a GPU point path.
+	sfm::scene::PointCloud const debug_point_cloud = sfm::scene::PointCloud::make_debug_cluster();
 	sfm::gfx::Renderer renderer;
-	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise();
+	sfm::gfx::RendererBuildResult const renderer_build = renderer.initialise(debug_point_cloud);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -96,9 +98,11 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 5: Camera transform path and grid/axes primitive");
+			ImGui::TextUnformatted("Milestone 6: PointCloud data model and first point renderer");
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
 			ImGui::Text("Line vertices: %d", renderer.line_vertex_count());
+			ImGui::Text("CPU point samples: %zu", debug_point_cloud.size());
+			ImGui::Text("GPU point vertices: %d", renderer.point_count());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();

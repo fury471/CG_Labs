@@ -14,4 +14,5 @@ target_compile_options (
 )
 
 add_subdirectory ("${CMAKE_CURRENT_SOURCE_DIR}/core")
+add_subdirectory ("${CMAKE_CURRENT_SOURCE_DIR}/scene")
 add_subdirectory ("${CMAKE_CURRENT_SOURCE_DIR}/gfx")
