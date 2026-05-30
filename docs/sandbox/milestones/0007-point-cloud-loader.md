@@ -1,7 +1,7 @@
 # Milestone 7 Record: Point Cloud Loading from File
 
 - **Milestone:** 7
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m7-point-cloud-loader`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -88,9 +88,25 @@ Loader diagnostics are also shown in the panel, followed by renderer status and 
 | Milestone 3 and 2 probes remain visible | `SfmSandbox` still displays both regression probes |
 | Legacy assignments remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` running with grid/axes and loaded coloured point cloud visible;
+- `Sandbox status` panel visible;
+- `Point source: resource file` visible;
+- CPU point samples reported as `21`;
+- GPU point vertices reported as `21`;
+- skipped input lines reported as `0`;
+- loader diagnostics report the loaded `res/sandbox/sample_point_cloud.xyzrgb` file and valid point count;
+- renderer status reports ready;
+- Milestone 3 shader probe remains passed in the same run;
+- Milestone 2 ownership probe remains passed in the same run;
+- developer confirmation that camera movement, resize/aspect behavior, legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -106,23 +122,23 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | Grid/axes remain visible | Pending |
-| `SfmSandbox` | Loaded coloured point cloud is visible above the grid | Pending |
-| `SfmSandbox` | Panel shows `Milestone 7: Point cloud loading from file` | Pending |
-| `SfmSandbox` | Panel shows `Point source: resource file` | Pending |
-| `SfmSandbox` | Panel shows positive CPU point sample and GPU point vertex counts | Pending |
-| `SfmSandbox` | Loader diagnostics report loaded file and valid point count | Pending |
-| `SfmSandbox` | Skipped input lines are reported as expected | Pending |
-| `SfmSandbox` | Camera movement changes both grid and point-cloud view consistently | Pending |
-| `SfmSandbox` | Resize/aspect behavior still works | Pending |
-| `SfmSandbox` | Milestone 3 shader probe still passes | Pending |
-| `SfmSandbox` | Milestone 2 ownership probe still passes | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Grid/axes remain visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Loaded coloured point cloud is visible above the grid | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 7: Point cloud loading from file` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Point source: resource file` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows positive CPU point sample and GPU point vertex counts | Passed — screenshot confirmed (`21`) |
+| `SfmSandbox` | Loader diagnostics report loaded file and valid point count | Passed — screenshot confirmed |
+| `SfmSandbox` | Skipped input lines are reported as expected | Passed — screenshot confirmed (`0`) |
+| `SfmSandbox` | Camera movement changes both grid and point-cloud view consistently | Passed — developer confirmed |
+| `SfmSandbox` | Resize/aspect behavior still works | Passed — developer confirmed |
+| `SfmSandbox` | Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - The loader supports only a small text format, not PLY/LAS/OBJ.
 - No file picker or hot reload exists yet.
@@ -130,6 +146,18 @@ Manual launch checklist:
 - The renderer still uploads a static point cloud once at startup.
 - No streaming, LOD, spatial indexing, point picking, camera pose rendering or trajectory rendering exists yet.
 
-## Completion gate
+## Completion assessment
 
-Milestone 7 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| Loader reads the checked-in resource file | Passed — screenshot confirmed |
+| `SfmSandbox` renders loaded coloured point cloud through the existing renderer path | Passed — screenshot confirmed |
+| CPU/GPU point counts match | Passed — screenshot confirmed (`21`) |
+| Malformed-line accounting is visible | Passed — screenshot confirmed (`0` skipped for the clean sample file) |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 7 is complete and may be merged into `feature/sfm-visualization-sandbox`.
