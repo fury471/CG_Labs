@@ -18,11 +18,13 @@ bool parse_float_token(std::string const& token, float& value)
 	// Floating-point std::from_chars is not implemented consistently across the
 	// project's CI standard libraries yet. A classic-locale stream parser is
 	// slower, but it is portable and correct for the small milestone text files.
+	//
+	// Use noskipws and check EOF directly after numeric extraction. Calling
+	// `stream >> std::ws` after an exact-token parse can set failbit on some
+	// standard-library implementations once EOF has already been reached.
 	std::istringstream stream{ token };
 	stream.imbue(std::locale::classic());
-
-	stream >> value;
-	stream >> std::ws;
+	stream >> std::noskipws >> value;
 
 	return !stream.fail() && stream.eof() && std::isfinite(value);
 }
