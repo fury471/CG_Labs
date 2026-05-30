@@ -4,6 +4,7 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include <fstream>
 #include <limits>
 #include <sstream>
 #include <utility>
@@ -77,13 +78,33 @@ void detach_and_delete_shaders(GLuint program, std::vector<GLuint>& shaders) noe
 	shaders.clear();
 }
 
+[[nodiscard]] bool read_text_file(std::filesystem::path const& path, std::string& content, std::string& message)
+{
+	std::ifstream file{ path };
+	if (!file) {
+		message = "could not open shader file '" + path.string() + "'";
+		return false;
+	}
+
+	std::ostringstream stream;
+	stream << file.rdbuf();
+	if (file.bad()) {
+		message = "failed while reading shader file '" + path.string() + "'";
+		return false;
+	}
+	content = stream.str();
+	if (content.empty()) {
+		message = "shader file is empty '" + path.string() + "'";
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 ShaderProgram::ShaderProgram(std::string_view debug_label) noexcept
 	: m_id(glCreateProgram())
 {
-	// This constructor creates the ownership-bearing program container. Use
-	// build() when the program should also be compiled and linked from sources.
 	detail::label_object(GL_PROGRAM, m_id, debug_label);
 }
 
@@ -95,9 +116,6 @@ ShaderProgram::~ShaderProgram() noexcept
 ShaderProgram::ShaderProgram(ShaderProgram&& other) noexcept
 	: m_id(std::exchange(other.m_id, 0u))
 {
-	// Uniform locations are a rebuildable cache, not ownership state. Avoid
-	// moving the unordered_map here so the move operation remains genuinely
-	// noexcept and cannot allocate during GPU ownership transfer.
 	m_uniform_locations.clear();
 	other.m_uniform_locations.clear();
 }
@@ -203,6 +221,35 @@ ShaderProgramBuildResult ShaderProgram::build(std::span<ShaderSource const> sour
 	return result;
 }
 
+ShaderProgramBuildResult ShaderProgram::build_from_files(std::span<ShaderFileSource const> sources,
+                                                         std::string_view debug_label)
+{
+	ShaderProgramBuildResult result{};
+	std::ostringstream log;
+	std::vector<std::string> owned_sources;
+	std::vector<ShaderSource> loaded_sources;
+	owned_sources.reserve(sources.size());
+	loaded_sources.reserve(sources.size());
+
+	for (ShaderFileSource const& file_source : sources) {
+		std::string content;
+		std::string message;
+		if (!read_text_file(file_source.path, content, message)) {
+			log << "ShaderProgram file build failed: " << message << "\n";
+			result.log = log.str();
+			return result;
+		}
+		owned_sources.push_back(std::move(content));
+		loaded_sources.push_back(ShaderSource{ file_source.stage, owned_sources.back(), file_source.path.string() });
+		log << "Loaded shader file [" << stage_name(file_source.stage) << ": " << file_source.path.string() << "]\n";
+	}
+
+	ShaderProgramBuildResult build_result = build(loaded_sources, debug_label);
+	log << build_result.log;
+	build_result.log = log.str();
+	return build_result;
+}
+
 void ShaderProgram::bind() const noexcept
 {
 	glUseProgram(m_id);
@@ -212,7 +259,6 @@ void ShaderProgram::reset() noexcept
 {
 	if (m_id == 0u)
 		return;
-
 	glDeleteProgram(m_id);
 	m_id = 0u;
 	m_uniform_locations.clear();
