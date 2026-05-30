@@ -40,62 +40,6 @@ constexpr std::array<DebugVertex, kAxisVertexCount> kAxisVertices{
 	DebugVertex{ { 0.0f, 0.0f,  kGridExtent }, { 0.25f, 0.50f, 1.00f } },
 };
 
-constexpr std::string_view kLineVertexShader = R"glsl(
-#version 460 core
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_colour;
-uniform mat4 u_world_to_clip;
-out vec3 v_colour;
-void main()
-{
-	v_colour = in_colour;
-	gl_Position = u_world_to_clip * vec4(in_position, 1.0);
-}
-)glsl";
-
-constexpr std::string_view kLineFragmentShader = R"glsl(
-#version 460 core
-in vec3 v_colour;
-layout(location = 0) out vec4 out_colour;
-void main()
-{
-	out_colour = vec4(v_colour, 1.0);
-}
-)glsl";
-
-constexpr std::string_view kPointVertexShader = R"glsl(
-#version 460 core
-layout(location = 0) in vec3 in_position;
-layout(location = 1) in vec3 in_colour;
-uniform mat4 u_world_to_clip;
-uniform float u_point_size;
-uniform float u_colour_mode;
-uniform vec3 u_solid_colour;
-out vec3 v_colour;
-void main()
-{
-	vec3 height_colour = mix(vec3(0.15, 0.45, 1.0), vec3(1.0, 0.9, 0.15), clamp(in_position.y * 0.5, 0.0, 1.0));
-	if (u_colour_mode < 0.5)
-		v_colour = in_colour;
-	else if (u_colour_mode < 1.5)
-		v_colour = height_colour;
-	else
-		v_colour = u_solid_colour;
-	gl_Position = u_world_to_clip * vec4(in_position, 1.0);
-	gl_PointSize = u_point_size;
-}
-)glsl";
-
-constexpr std::string_view kPointFragmentShader = R"glsl(
-#version 460 core
-in vec3 v_colour;
-layout(location = 0) out vec4 out_colour;
-void main()
-{
-	out_colour = vec4(v_colour, 1.0);
-}
-)glsl";
-
 void add_message(RendererBuildResult& result, std::string message)
 {
 	result.messages.emplace_back(std::move(message));
@@ -265,7 +209,7 @@ RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_clo
 		return result;
 
 	result.succeeded = true;
-	add_message(result, "Central renderer is ready with grid/axes, camera poses and point cloud pipelines");
+	add_message(result, "Central renderer is ready with file shaders, explicit submissions and point cloud/camera pipelines");
 	return result;
 }
 
@@ -276,23 +220,23 @@ RendererBuildResult Renderer::initialise_grid_pipeline()
 	m_ready = false;
 	m_line_vertex_count = 0;
 
-	std::array<ShaderSource, 2> const grid_sources{
-		ShaderSource{ ShaderStage::vertex, kLineVertexShader, "SfmSandbox grid vertex shader" },
-		ShaderSource{ ShaderStage::fragment, kLineFragmentShader, "SfmSandbox grid fragment shader" },
+	std::array<ShaderFileSource, 2> const grid_sources{
+		ShaderFileSource{ ShaderStage::vertex, "shaders/sandbox/line.vert" },
+		ShaderFileSource{ ShaderStage::fragment, "shaders/sandbox/line.frag" },
 	};
-	ShaderProgramBuildResult grid_build = ShaderProgram::build(grid_sources, "SfmSandbox grid renderer program");
+	ShaderProgramBuildResult grid_build = ShaderProgram::build_from_files(grid_sources, "SfmSandbox line renderer program");
 	if (!grid_build.succeeded || !grid_build.program) {
-		add_message(result, "Grid shader build failed");
+		add_message(result, "Line shader file build failed");
 		add_message(result, grid_build.log.empty() ? "<empty shader log>" : grid_build.log);
 		return result;
 	}
 	m_grid_program = std::move(grid_build.program);
 	m_grid_world_to_clip_uniform = m_grid_program.uniform_location("u_world_to_clip");
 	if (!m_grid_world_to_clip_uniform) {
-		add_message(result, "Grid shader build failed: u_world_to_clip uniform is missing");
+		add_message(result, "Line shader build failed: u_world_to_clip uniform is missing");
 		return result;
 	}
-	add_message(result, "Grid/axes shader compiled and cached camera uniform");
+	add_message(result, "Line shader files loaded and cached camera uniform");
 
 	std::vector<DebugVertex> const grid_vertices = build_grid_and_axes_vertices();
 	m_line_vertex_count = static_cast<GLsizei>(grid_vertices.size());
@@ -338,13 +282,13 @@ RendererBuildResult Renderer::initialise_point_pipeline_if_needed()
 		return result;
 	}
 
-	std::array<ShaderSource, 2> const point_sources{
-		ShaderSource{ ShaderStage::vertex, kPointVertexShader, "SfmSandbox point vertex shader" },
-		ShaderSource{ ShaderStage::fragment, kPointFragmentShader, "SfmSandbox point fragment shader" },
+	std::array<ShaderFileSource, 2> const point_sources{
+		ShaderFileSource{ ShaderStage::vertex, "shaders/sandbox/point_cloud.vert" },
+		ShaderFileSource{ ShaderStage::fragment, "shaders/sandbox/line.frag" },
 	};
-	ShaderProgramBuildResult point_build = ShaderProgram::build(point_sources, "SfmSandbox point renderer program");
+	ShaderProgramBuildResult point_build = ShaderProgram::build_from_files(point_sources, "SfmSandbox point renderer program");
 	if (!point_build.succeeded || !point_build.program) {
-		add_message(result, "Point shader build failed");
+		add_message(result, "Point shader file build failed");
 		add_message(result, point_build.log.empty() ? "<empty shader log>" : point_build.log);
 		return result;
 	}
@@ -359,7 +303,7 @@ RendererBuildResult Renderer::initialise_point_pipeline_if_needed()
 	}
 	m_point_program_ready = true;
 	result.succeeded = true;
-	add_message(result, "Point shader compiled and cached inspection uniforms");
+	add_message(result, "Point shader files loaded and cached inspection uniforms");
 	return result;
 }
 
@@ -464,35 +408,77 @@ RendererBuildResult Renderer::reload_camera_poses(sfm::scene::CameraPoseSet cons
 	return result;
 }
 
-void Renderer::render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept
+void Renderer::draw_submission(RenderSubmission const& submission,
+                               glm::mat4 const& world_to_clip,
+                               RendererFrameStatistics& statistics) const noexcept
 {
-	if (!m_ready)
+	if (submission.mesh.vertex_array == 0u || submission.mesh.vertex_count <= 0)
 		return;
+
+	++statistics.submitted_items;
+	if (submission.material.kind == MaterialKind::PointCloud) {
+		m_point_program.set_uniform(m_point_world_to_clip_uniform, world_to_clip);
+		m_point_program.set_uniform(m_point_size_uniform, std::clamp(submission.point_size, 1.0f, 32.0f));
+		m_point_program.set_uniform(m_point_colour_mode_uniform, static_cast<float>(submission.point_colour_mode));
+		m_point_program.set_uniform(m_point_solid_colour_uniform, submission.point_solid_colour);
+		m_point_program.bind();
+		++statistics.program_binds;
+		glBindVertexArray(submission.mesh.vertex_array);
+		++statistics.vertex_array_binds;
+		glEnable(GL_PROGRAM_POINT_SIZE);
+		glDrawArrays(submission.mesh.primitive, 0, submission.mesh.vertex_count);
+		++statistics.draw_calls;
+		statistics.point_vertices_drawn += submission.mesh.vertex_count;
+		return;
+	}
 
 	m_grid_program.set_uniform(m_grid_world_to_clip_uniform, world_to_clip);
 	m_grid_program.bind();
-	glBindVertexArray(m_grid_vertex_array.id());
-	glDrawArrays(GL_LINES, 0, m_line_vertex_count);
+	++statistics.program_binds;
+	glBindVertexArray(submission.mesh.vertex_array);
+	++statistics.vertex_array_binds;
+	glDrawArrays(submission.mesh.primitive, 0, submission.mesh.vertex_count);
+	++statistics.draw_calls;
+	statistics.line_vertices_drawn += submission.mesh.vertex_count;
+}
 
+void Renderer::render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept
+{
+	RendererFrameStatistics statistics{};
+	if (!m_ready) {
+		m_last_frame_statistics = statistics;
+		return;
+	}
+
+	RenderQueue queue{};
+	queue.submit(RenderSubmission{
+		MeshHandle{ m_grid_vertex_array.id(), GL_LINES, m_line_vertex_count, "grid/axes" },
+		MaterialDescriptor{ MaterialKind::LineColour, "line colour" }
+	});
 	if (point_settings.show_bounds && m_bounds_ready) {
-		glBindVertexArray(m_bounds_vertex_array.id());
-		glDrawArrays(GL_LINES, 0, m_bounds_line_vertex_count);
+		queue.submit(RenderSubmission{
+			MeshHandle{ m_bounds_vertex_array.id(), GL_LINES, m_bounds_line_vertex_count, "point-cloud bounds" },
+			MaterialDescriptor{ MaterialKind::LineColour, "line colour" }
+		});
 	}
 	if (m_camera_pose_ready) {
-		glBindVertexArray(m_camera_vertex_array.id());
-		glDrawArrays(GL_LINES, 0, m_camera_line_vertex_count);
+		queue.submit(RenderSubmission{
+			MeshHandle{ m_camera_vertex_array.id(), GL_LINES, m_camera_line_vertex_count, "camera frustums" },
+			MaterialDescriptor{ MaterialKind::LineColour, "line colour" }
+		});
 	}
+	queue.submit(RenderSubmission{
+		MeshHandle{ m_point_vertex_array.id(), GL_POINTS, m_point_count, "point cloud" },
+		MaterialDescriptor{ MaterialKind::PointCloud, "point cloud" },
+		point_settings.solid_colour,
+		point_settings.point_size,
+		static_cast<int>(point_settings.colour_mode)
+	});
 
-	float const clamped_point_size = std::clamp(point_settings.point_size, 1.0f, 32.0f);
-	m_point_program.set_uniform(m_point_world_to_clip_uniform, world_to_clip);
-	m_point_program.set_uniform(m_point_size_uniform, clamped_point_size);
-	m_point_program.set_uniform(m_point_colour_mode_uniform, static_cast<float>(point_settings.colour_mode));
-	m_point_program.set_uniform(m_point_solid_colour_uniform, point_settings.solid_colour);
-	m_point_program.bind();
-	glBindVertexArray(m_point_vertex_array.id());
-	glEnable(GL_PROGRAM_POINT_SIZE);
-	glDrawArrays(GL_POINTS, 0, m_point_count);
+	for (RenderSubmission const& submission : queue.submissions())
+		draw_submission(submission, world_to_clip, statistics);
 	glBindVertexArray(0);
+	m_last_frame_statistics = statistics;
 }
 
 } // namespace sfm::gfx
