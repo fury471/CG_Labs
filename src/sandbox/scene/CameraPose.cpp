@@ -4,6 +4,7 @@
 #include <glm/gtc/constants.hpp>
 
 #include <cmath>
+#include <string>
 #include <utility>
 
 namespace sfm::scene
@@ -40,7 +41,12 @@ CameraPoseSet CameraPoseSet::make_debug_orbit()
 		CameraPose pose{};
 		pose.camera_to_world = glm::inverse(world_to_camera);
 		pose.colour = glm::vec3{ 1.0f, 0.75f - 0.25f * t, 0.15f + 0.75f * t };
-		poses.push_back(pose);
+		pose.metadata.index = static_cast<std::size_t>(index);
+		pose.metadata.source_id = index;
+		pose.metadata.source_format = "procedural debug orbit";
+		pose.metadata.source_convention = "generated graphics camera-to-world, local -Z forward, +Y up";
+		pose.metadata.image_name = "debug_orbit_" + std::to_string(index);
+		poses.push_back(std::move(pose));
 	}
 
 	return CameraPoseSet{ std::move(poses) };
