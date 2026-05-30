@@ -2,9 +2,9 @@
 
 ## Purpose
 
-This roadmap defines the current direction for the SfM Visualization Sandbox after the completion of Milestone 10. It replaces the earlier speculative milestone list with the actual validated milestone history and a realistic backlog for the next phase.
+This roadmap defines the current direction for the SfM Visualization Sandbox after the completion of Milestone 10. It records the validated prototype history and schedules the remaining work in dependency order.
 
-The project remains intentionally conservative: each integration step must leave the repository understandable, buildable and locally runnable. Correctness, architectural clarity, regression safety and honest documentation take priority over quickly accumulating features.
+The project remains intentionally conservative: each integration step must leave the repository understandable, buildable and locally runnable. Correctness, architectural clarity, regression safety, measured performance and honest documentation take priority over quickly accumulating features.
 
 ## Current integration branch
 
@@ -24,9 +24,9 @@ Completed work is merged into this branch only after:
 
 ## Roadmap status after Milestone 10
 
-There is no active Milestone 11 in this roadmap. Any future milestone number must be added deliberately by updating this document first.
+Milestones 0-10 are complete and form the first validated prototype phase. Future milestones now continue from Milestone 11, but only because this roadmap explicitly schedules them.
 
-The completed M1-M10 sequence is now treated as the first prototype phase: an interactive, file-backed SfM visualization sandbox foundation. The original roadmap items that were not completed are retained below as explicit backlog, not silently counted as done.
+Do not introduce or rename milestone numbers by conversation alone. Future milestone changes must be made in this document first.
 
 ---
 
@@ -70,7 +70,7 @@ Delivered move-only GPU ownership foundations for new sandbox graphics code:
 
 ### Milestone 3 — ShaderProgram interface and cached bindings
 
-**Status:** Complete as shader-program foundation; material separation deferred.
+**Status:** Complete as shader-program foundation; material separation scheduled for Milestone 15.
 
 Delivered:
 
@@ -80,27 +80,15 @@ Delivered:
 - typed uniform setting used by renderer paths;
 - shader-program probe visible in the sandbox status panel.
 
-Deferred from the earlier speculative plan:
-
-- full material abstraction;
-- file-based shader source loading;
-- development shader hot reload.
-
 ### Milestone 4 — Central renderer and first rendered geometry
 
-**Status:** Complete as central renderer foundation; full render queue deferred.
+**Status:** Complete as central renderer foundation; generic render queue scheduled for Milestone 15.
 
 Delivered:
 
 - `Renderer` as the central sandbox graphics boundary;
 - first GPU geometry path;
 - initial draw submission through renderer-owned GPU resources.
-
-Deferred:
-
-- generic `Mesh`, `Material`, `Renderable` model;
-- render queue sorting;
-- state-change statistics.
 
 ### Milestone 5 — Camera transform path and grid/axes primitive
 
@@ -126,7 +114,7 @@ Delivered:
 
 ### Milestone 7 — Point cloud loading from file
 
-**Status:** Complete as milestone text format loader; full `.ply` import deferred.
+**Status:** Complete as milestone text format loader; full reconstruction point-cloud import scheduled for Milestone 12.
 
 Delivered:
 
@@ -134,13 +122,6 @@ Delivered:
 - checked-in sample point-cloud resource;
 - loader diagnostics and malformed-line accounting;
 - portable classic-locale float parsing after CI exposed `std::from_chars(float)` portability issues.
-
-Deferred:
-
-- PLY/LAS/OBJ import;
-- large real datasets and redistribution review;
-- bounding boxes and dataset statistics;
-- configurable point display modes.
 
 ### Milestone 8 — Runtime point-cloud reload
 
@@ -156,7 +137,7 @@ Delivered:
 
 ### Milestone 9 — Camera pose / frustum visualization
 
-**Status:** Complete as camera visualization foundation.
+**Status:** Complete as camera visualization foundation; instancing and pose metadata scheduled later.
 
 Delivered:
 
@@ -166,16 +147,9 @@ Delivered:
 - trajectory line rendering;
 - pose/frustum counts in the status panel.
 
-Deferred:
-
-- instanced frustum rendering;
-- pose selection;
-- pose metadata panel;
-- coordinate-convention tests and documentation for CV-to-graphics conversions.
-
 ### Milestone 10 — Camera pose loading from file
 
-**Status:** Complete as milestone text format loader; product hardening remains a separate backlog item.
+**Status:** Complete as milestone text format loader; common reconstruction-format imports scheduled for Milestone 14.
 
 Delivered:
 
@@ -185,17 +159,9 @@ Delivered:
 - skipped-line diagnostics;
 - fallback to deterministic orbit if loading fails.
 
-Deferred:
-
-- runtime camera-pose reload;
-- COLMAP/Bundler/OpenMVG import;
-- quaternion/full-matrix pose formats;
-- automated loader tests;
-- packaging and end-user documentation.
-
 ---
 
-## Realigned capability map
+## Current capability map
 
 The completed prototype now supports:
 
@@ -220,117 +186,254 @@ This is a strong prototype foundation, not a finished reconstruction viewer.
 
 ---
 
-## Deferred backlog from the original roadmap
+## Scheduled roadmap after Milestone 10
 
-The following items were present in the original roadmap but are not yet complete. They should be handled as future planned work only after choosing and documenting the next milestone sequence.
+The remaining work is ordered by dependency and risk. The schedule intentionally does not jump straight to mesh or imagery features before file-format validation, test coverage, renderer architecture and performance measurement are strong enough to support them.
 
-### Rendering architecture backlog
+Recommended cadence:
 
-- real material abstraction;
-- file-based shader source loading;
-- shader reload workflow;
-- generic mesh abstraction;
+- one milestone per short-lived branch;
+- one focused pull request per milestone;
+- local validation plus CI before merge;
+- no milestone may claim performance improvement without a reproducible measurement scene;
+- no external dataset may be committed without redistribution/license review.
+
+### Milestone 11 — Test and validation foundation
+
+**Purpose:** Make the existing file/data layer trustworthy before adding more formats.
+
+**Planned scope:**
+
+- add test target infrastructure for new sandbox code;
+- unit tests for point-cloud text parsing;
+- unit tests for camera-pose text parsing;
+- tests for malformed input, comments, commas, whitespace, normalized RGB and byte-style RGB;
+- tests for degenerate camera pose rejection;
+- document parser guarantees and known exclusions.
+
+**Acceptance criteria:**
+
+- tests run in local Ninja build;
+- tests run in CI where practical;
+- parser behavior is documented and reproducible;
+- legacy applications and `SfmSandbox` still launch.
+
+### Milestone 12 — PLY point-cloud import and dataset statistics
+
+**Purpose:** Move from milestone text point clouds toward real reconstruction data.
+
+**Planned scope:**
+
+- initial ASCII PLY coloured point-cloud loader;
+- documented rejection of unsupported PLY properties or binary PLY if not implemented;
+- point-cloud bounding box calculation;
+- dataset statistics panel: point count, bounds, approximate memory size;
+- sample dataset policy: use tiny synthetic repo-safe file first, document redistribution rules for real datasets.
+
+**Acceptance criteria:**
+
+- valid ASCII PLY sample loads and renders;
+- malformed/unsupported PLY fails visibly without crashing;
+- bounding box and dataset statistics are visible;
+- existing text point-cloud loading/reload remains functional.
+
+### Milestone 13 — Point-cloud inspection controls and UX polish
+
+**Purpose:** Make point-cloud inspection more useful before expanding geometry types.
+
+**Planned scope:**
+
+- configurable point size in UI;
+- basic point colour/display modes where data supports them;
+- optional bounding box visualization;
+- native or framework-supported file picker if feasible without destabilizing platform code;
+- clearer loader diagnostics layout;
+- active dataset summary panel.
+
+**Acceptance criteria:**
+
+- point size/display changes are visible at runtime;
+- invalid file selection preserves previous visible data;
+- dataset statistics remain accurate after reload;
+- interaction and existing probes remain stable.
+
+### Milestone 14 — Camera-pose conventions, import formats and metadata
+
+**Purpose:** Make camera poses usable with real SfM outputs and remove ambiguity around coordinate systems.
+
+**Planned scope:**
+
+- coordinate-convention documentation for graphics camera space versus common computer-vision conventions;
+- tests for pose transform conventions;
+- runtime camera-pose reload with failed-reload preservation;
+- at least one common camera-pose import path, selected after checking target dataset format;
+- pose metadata display: index, position, source file, skipped-line count;
+- optional pose selection if it can be implemented without disrupting renderer architecture.
+
+**Acceptance criteria:**
+
+- known synthetic camera sequence displays with verified orientation and order;
+- camera-pose reload does not destroy previous visible poses on failure;
+- transform convention tests pass;
+- point-cloud reload remains functional.
+
+### Milestone 15 — Renderer architecture consolidation
+
+**Purpose:** Pay down architectural debt before adding mesh and image visualization.
+
+**Planned scope:**
+
+- shader source loading from files;
+- improved shader diagnostics with file names;
+- minimal material abstraction;
+- mesh abstraction;
 - renderable/submission model;
-- render queue and sorting;
-- draw-call and state-change statistics.
+- render queue or equivalent explicit submission structure;
+- draw-call and state-change statistics panel;
+- keep raw OpenGL calls inside `sandbox/gfx` except narrow debug exceptions.
 
-### Performance and renderer infrastructure backlog
+**Acceptance criteria:**
 
-- instanced rendering for repeated frustums/markers;
-- controlled stress scene;
-- draw-call comparison before/after instancing;
+- grid, point cloud and camera frustums render through the consolidated submission path or a clearly documented transitional path;
+- renderables do not issue raw OpenGL draw calls themselves;
+- draw-call/state statistics are visible;
+- no behavior regression in existing sandbox features.
+
+### Milestone 16 — Reconstructed mesh loading and basic surface inspection
+
+**Purpose:** Add the first reconstructed-surface inspection capability.
+
+**Planned scope:**
+
+- simple mesh loader for a selected, documented format;
+- CPU-side mesh data model;
+- GPU mesh upload path through the renderer architecture from Milestone 15;
+- basic material suitable for reconstruction inspection;
+- mesh visibility toggle with point cloud and camera poses still available;
+- mesh bounds/statistics.
+
+**Acceptance criteria:**
+
+- sample mesh loads and renders;
+- mesh, point cloud and camera frustums can be inspected together;
+- malformed mesh input fails visibly;
+- renderer statistics account for mesh draw calls.
+
+### Milestone 17 — Imagery relationships and projection debugging
+
+**Purpose:** Connect points, cameras and source imagery so reconstruction quality can be inspected visually.
+
+**Planned scope:**
+
+- image plane or image overlay representation;
+- camera-image association data model;
+- simple image resource loading with license-safe sample asset;
+- optional projective texture or projection-debug visualization;
+- projection sanity check against known camera parameters if calibration data is available.
+
+**Acceptance criteria:**
+
+- at least one camera can display or reference an associated image;
+- image/frustum/point relationship is visually understandable;
+- projection behavior is documented and checked against a known synthetic case.
+
+### Milestone 18 — Render targets, profiling and performance baseline
+
+**Purpose:** Establish measurable rendering infrastructure before optimization claims.
+
+**Planned scope:**
+
 - resize-safe offscreen render targets;
-- HDR colour render target;
-- tone-mapping pass;
-- GPU timing scopes and named pass profiling;
-- documented timing captures with machine/GPU context.
+- framebuffer completeness diagnostics;
+- optional HDR colour target and tone-mapping pass if justified by inspection value;
+- GPU timing scopes and named pass timings;
+- CPU frame statistics and draw-call statistics consolidated in the status panel;
+- archived baseline measurements for representative scenes.
 
-### SfM data backlog
+**Acceptance criteria:**
 
-- PLY point-cloud import;
-- larger real point-cloud datasets with documented redistribution status;
-- bounding boxes and dataset statistics;
-- configurable point size and display modes;
-- camera-pose import from common reconstruction formats;
-- coordinate-convention tests and documentation;
-- pose selection and metadata inspection.
+- resizing does not break render targets;
+- named pass timings are visible;
+- baseline scenes and measurement configuration are documented;
+- no performance claim is made without measurement evidence.
 
-### Mesh and imagery backlog
+### Milestone 19 — Instancing and workload stress scenes
 
-- reconstructed mesh loading;
-- mesh/point/pose joint inspection;
-- image planes or overlays;
-- camera-image association display;
-- projective texture or projection-debug visualization.
+**Purpose:** Optimize repeated visualization objects only after profiling infrastructure exists.
 
-### Product hardening backlog
+**Planned scope:**
 
-- automated tests for parsers and math conventions;
-- rendering regression strategy;
-- asset and dataset validation;
-- packaging and configuration handling;
-- user/developer documentation;
+- instanced rendering for repeated frustums, markers or debug glyphs;
+- controlled stress scene with many camera poses/markers;
+- before/after draw-call counts;
+- before/after CPU/GPU timing captures;
+- documented limitations and hardware context.
+
+**Acceptance criteria:**
+
+- repeated-object scene avoids one draw call per object where instancing applies;
+- timing results demonstrate or honestly refute the expected improvement;
+- visual output matches non-instanced reference behavior.
+
+### Milestone 20 — Product hardening, packaging and release readiness
+
+**Purpose:** Move from strong prototype to a maintainable, distributable focused tool foundation.
+
+**Planned scope:**
+
+- automated tests included in CI;
+- rendering regression strategy or screenshot-baseline plan;
+- asset and dataset validation workflow;
+- packaging/configuration handling;
+- end-user documentation;
+- developer documentation;
 - dependency, resource and license audit;
-- performance target scenes and repeatable measurement procedure.
+- performance target scenes and repeatable measurement procedure;
+- cleanup of milestone-era debug wording where it should become product wording.
+
+**Acceptance criteria:**
+
+- CI covers build and available tests;
+- documented run instructions are correct on the supported local workflow;
+- sample resources have clear license/redistribution status;
+- performance baselines are reproducible;
+- the project does not claim commercial readiness beyond what license review supports.
 
 ---
 
-## Recommended next roadmap decision
+## Coverage check against original deferred backlog
 
-Before creating another feature branch, choose one of these directions and update this document accordingly:
+All deferred original roadmap items are scheduled:
 
-### Option A — Architecture consolidation
-
-Focus on renderer structure before adding more SfM features.
-
-Candidate work:
-
-- material abstraction;
-- mesh/renderable model;
-- render queue;
-- renderer statistics;
-- tests for parser and transform conventions.
-
-This is the best option if the next priority is long-term code quality.
-
-### Option B — Data realism
-
-Focus on importing more realistic reconstruction data.
-
-Candidate work:
-
-- PLY point-cloud loader;
-- point-cloud bounding box and statistics;
-- real sample dataset policy;
-- configurable point size/display mode;
-- camera-pose convention documentation.
-
-This is the best option if the next priority is making the sandbox feel like a real SfM viewer.
-
-### Option C — Product hardening
-
-Focus on reliability and distributability.
-
-Candidate work:
-
-- parser unit tests;
-- CI test targets;
-- resource validation;
-- documentation cleanup;
-- dependency/license audit;
-- performance measurement baseline.
-
-This is the best option if the next priority is trustworthiness and maintainability.
-
-## Rule for future milestones
-
-Do not introduce a new milestone number by conversation alone. Future milestone numbers must be added to this roadmap first, with:
-
-- goal;
-- planned source boundaries;
-- acceptance criteria;
-- validation checklist;
-- known exclusions.
+| Backlog item | Scheduled milestone |
+|---|---|
+| parser tests and data validation | M11 |
+| PLY point-cloud import | M12 |
+| bounding box and point-cloud statistics | M12/M13 |
+| configurable point display modes | M13 |
+| file picker / improved reload UX | M13 |
+| coordinate-convention tests and documentation | M14 |
+| runtime camera-pose reload | M14 |
+| common camera-pose import formats | M14 |
+| pose selection and metadata | M14 |
+| shader file loading and material abstraction | M15 |
+| mesh/renderable model and render queue | M15 |
+| draw-call/state statistics | M15/M18 |
+| reconstructed mesh loading | M16 |
+| image planes/overlays and camera-image relationships | M17 |
+| projection-debug visualization | M17 |
+| resize-safe render targets | M18 |
+| HDR/tone mapping, if justified | M18 |
+| GPU timing scopes and profiling | M18 |
+| instanced repeated-object rendering | M19 |
+| controlled stress scene | M19 |
+| before/after timing evidence | M19 |
+| automated tests in CI | M11/M20 |
+| rendering regression strategy | M20 |
+| packaging/configuration handling | M20 |
+| user/developer documentation | M20 |
+| dependency/resource/license audit | M20 |
+| performance target scenes | M18/M20 |
 
 ---
 
@@ -372,13 +475,16 @@ SfmSandbox
 
 - No optimization claim without a reproducible workload and measurement.
 - Profiling measurements record configuration, scene/data scale and relevant machine/GPU context.
+- Optimization work must have a before/after measurement plan before implementation begins.
 
 ### Documentation gate
 
 - Architectural policy changes receive an ADR or update to an existing ADR when they change design direction.
 - Completed milestones receive a completion note and known limitations.
 - Roadmap changes must distinguish completed work from deferred or planned work.
+- Future milestone changes must update this roadmap before implementation starts.
 
 ### Commercial-readiness gate
 
 - Do not distribute inherited course assets or claim commercial readiness without license review.
+- External datasets, images, meshes and reconstruction files need documented redistribution status before being committed.
