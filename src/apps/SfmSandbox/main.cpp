@@ -115,6 +115,16 @@ void draw_camera_pose_metadata(sfm::scene::CameraPoseSet const& camera_poses, in
 	ImGui::Text("Right: %.3f, %.3f, %.3f", right.x, right.y, right.z);
 }
 
+void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& statistics)
+{
+	ImGui::Text("Submitted items: %d", statistics.submitted_items);
+	ImGui::Text("Draw calls: %d", statistics.draw_calls);
+	ImGui::Text("Program binds: %d", statistics.program_binds);
+	ImGui::Text("Vertex-array binds: %d", statistics.vertex_array_binds);
+	ImGui::Text("Line vertices drawn: %d", statistics.line_vertices_drawn);
+	ImGui::Text("Point vertices drawn: %d", statistics.point_vertices_drawn);
+}
+
 } // namespace
 
 int main()
@@ -179,9 +189,6 @@ int main()
 
 		glfwPollEvents();
 		ImGuiIO& io = ImGui::GetIO();
-		// The sandbox is a long-running inspection tool, so the debug UI must remain
-		// readable on high-DPI displays. FontGlobalScale is cheap to adjust at
-		// runtime and avoids introducing a font-asset dependency in this milestone.
 		io.FontGlobalScale = ui_scale;
 		input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
 		input_handler.Advance();
@@ -214,7 +221,7 @@ int main()
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 14: Camera-pose conventions, import formats and metadata");
+			ImGui::TextUnformatted("Milestone 15: Renderer architecture consolidation");
 			draw_point_cloud_statistics(point_cloud.statistics());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Point display");
@@ -307,6 +314,7 @@ int main()
 			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
 			ImGui::Text("Bounds line vertices: %d", renderer.bounds_line_vertex_count());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
+			draw_renderer_frame_statistics(renderer.frame_statistics());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
