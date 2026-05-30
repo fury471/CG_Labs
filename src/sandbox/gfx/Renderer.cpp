@@ -97,6 +97,20 @@ void append_messages(RendererBuildResult& destination, RendererBuildResult const
 	destination.messages.insert(destination.messages.end(), source.messages.begin(), source.messages.end());
 }
 
+DebugVertex make_debug_vertex(glm::vec3 const& position, glm::vec3 const& colour)
+{
+	return DebugVertex{ { position.x, position.y, position.z }, { colour.r, colour.g, colour.b } };
+}
+
+void add_line(std::vector<DebugVertex>& vertices,
+              glm::vec3 const& a,
+              glm::vec3 const& b,
+              glm::vec3 const& colour)
+{
+	vertices.push_back(make_debug_vertex(a, colour));
+	vertices.push_back(make_debug_vertex(b, colour));
+}
+
 std::vector<DebugVertex> build_grid_and_axes_vertices()
 {
 	std::vector<DebugVertex> vertices;
@@ -126,6 +140,73 @@ std::vector<PointVertex> build_point_vertices(sfm::scene::PointCloud const& poin
 	return vertices;
 }
 
+glm::vec3 transform_point(glm::mat4 const& matrix, glm::vec3 const& point)
+{
+	glm::vec4 const transformed = matrix * glm::vec4{ point, 1.0f };
+	return glm::vec3{ transformed } / transformed.w;
+}
+
+glm::vec3 camera_position(sfm::scene::CameraPose const& pose)
+{
+	return transform_point(pose.camera_to_world, glm::vec3{ 0.0f });
+}
+
+std::vector<DebugVertex> build_camera_pose_vertices(sfm::scene::CameraPoseSet const& camera_poses)
+{
+	std::vector<DebugVertex> vertices;
+	if (camera_poses.empty())
+		return vertices;
+
+	// Each camera contributes eight frustum lines plus one local-forward marker.
+	// Consecutive cameras also contribute one trajectory segment.
+	constexpr std::size_t line_vertices_per_camera = 18u;
+	std::size_t const trajectory_vertices = camera_poses.size() > 1u ? (camera_poses.size() - 1u) * 2u : 0u;
+	vertices.reserve(camera_poses.size() * line_vertices_per_camera + trajectory_vertices);
+
+	constexpr float near_depth = -0.45f;
+	constexpr float half_width = 0.36f;
+	constexpr float half_height = 0.24f;
+	glm::vec3 const local_origin{ 0.0f, 0.0f, 0.0f };
+	std::array<glm::vec3, 4> const local_corners{
+		glm::vec3{ -half_width, -half_height, near_depth },
+		glm::vec3{  half_width, -half_height, near_depth },
+		glm::vec3{  half_width,  half_height, near_depth },
+		glm::vec3{ -half_width,  half_height, near_depth },
+	};
+
+	glm::vec3 previous_position{};
+	bool has_previous = false;
+	glm::vec3 const trajectory_colour{ 1.0f, 0.95f, 0.15f };
+
+	for (sfm::scene::CameraPose const& pose : camera_poses.poses()) {
+		glm::vec3 const origin = transform_point(pose.camera_to_world, local_origin);
+		std::array<glm::vec3, 4> corners{};
+		for (std::size_t i = 0; i < local_corners.size(); ++i)
+			corners[i] = transform_point(pose.camera_to_world, local_corners[i]);
+
+		// Four rays from camera center to the image-plane corners.
+		for (glm::vec3 const& corner : corners)
+			add_line(vertices, origin, corner, pose.colour);
+
+		// Four image-plane edges.
+		add_line(vertices, corners[0], corners[1], pose.colour);
+		add_line(vertices, corners[1], corners[2], pose.colour);
+		add_line(vertices, corners[2], corners[3], pose.colour);
+		add_line(vertices, corners[3], corners[0], pose.colour);
+
+		// A small forward marker makes the camera viewing direction easier to read.
+		glm::vec3 const forward_tip = transform_point(pose.camera_to_world, glm::vec3{ 0.0f, 0.0f, near_depth * 1.55f });
+		add_line(vertices, origin, forward_tip, glm::vec3{ 0.9f, 0.9f, 1.0f });
+
+		if (has_previous)
+			add_line(vertices, previous_position, origin, trajectory_colour);
+		previous_position = origin;
+		has_previous = true;
+	}
+
+	return vertices;
+}
+
 bool configure_vertex_layout(VertexArray const& vertex_array, GLuint buffer, GLsizei stride)
 {
 	constexpr GLuint binding_index = 0u;
@@ -137,7 +218,8 @@ bool configure_vertex_layout(VertexArray const& vertex_array, GLuint buffer, GLs
 
 } // namespace
 
-RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_cloud)
+RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_cloud,
+                                         sfm::scene::CameraPoseSet const& camera_poses)
 {
 	RendererBuildResult result{};
 	m_ready = false;
@@ -147,13 +229,18 @@ RendererBuildResult Renderer::initialise(sfm::scene::PointCloud const& point_clo
 	if (!grid_result.succeeded)
 		return result;
 
+	RendererBuildResult camera_result = initialise_camera_pose_pipeline(camera_poses);
+	append_messages(result, camera_result);
+	if (!camera_result.succeeded)
+		return result;
+
 	RendererBuildResult point_result = reload_point_cloud(point_cloud);
 	append_messages(result, point_result);
 	if (!point_result.succeeded)
 		return result;
 
 	result.succeeded = true;
-	add_message(result, "Central renderer is ready with grid/axes and point cloud pipelines");
+	add_message(result, "Central renderer is ready with grid/axes, camera poses and point cloud pipelines");
 	return result;
 }
 
@@ -198,6 +285,44 @@ RendererBuildResult Renderer::initialise_grid_pipeline()
 
 	m_grid_ready = true;
 	result.succeeded = true;
+	return result;
+}
+
+RendererBuildResult Renderer::initialise_camera_pose_pipeline(sfm::scene::CameraPoseSet const& camera_poses)
+{
+	RendererBuildResult result{};
+	m_camera_pose_ready = false;
+	m_camera_line_vertex_count = 0;
+	m_camera_vertex_array.reset();
+	m_camera_vertex_buffer.reset();
+
+	if (camera_poses.empty()) {
+		add_message(result, "Camera pose visualization skipped: pose set is empty");
+		return result;
+	}
+
+	std::vector<DebugVertex> const camera_vertices = build_camera_pose_vertices(camera_poses);
+	if (camera_vertices.empty()) {
+		add_message(result, "Camera pose visualization failed: no line vertices were generated");
+		return result;
+	}
+
+	m_camera_line_vertex_count = static_cast<GLsizei>(camera_vertices.size());
+	m_camera_vertex_buffer = Buffer{ "SfmSandbox camera pose vertex buffer" };
+	if (!m_camera_vertex_buffer.set_storage(std::span<DebugVertex const>{ camera_vertices.data(), camera_vertices.size() })) {
+		add_message(result, "Camera pose vertex-buffer upload failed");
+		return result;
+	}
+
+	m_camera_vertex_array = VertexArray{ "SfmSandbox camera pose vertex array" };
+	if (!configure_vertex_layout(m_camera_vertex_array, m_camera_vertex_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
+		add_message(result, "Camera pose vertex-array layout failed");
+		return result;
+	}
+
+	m_camera_pose_ready = true;
+	result.succeeded = true;
+	add_message(result, "Camera frustum and trajectory GPU layout configured");
 	return result;
 }
 
@@ -270,7 +395,7 @@ RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& p
 	m_point_vertex_buffer = std::move(replacement_buffer);
 	m_point_vertex_array = std::move(replacement_vertex_array);
 	m_point_count = static_cast<GLsizei>(point_vertices.size());
-	m_ready = true;
+	m_ready = m_grid_ready && m_camera_pose_ready;
 
 	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
 	result.succeeded = true;
@@ -286,6 +411,11 @@ void Renderer::render(glm::mat4 const& world_to_clip) const noexcept
 	m_grid_program.bind();
 	glBindVertexArray(m_grid_vertex_array.id());
 	glDrawArrays(GL_LINES, 0, m_line_vertex_count);
+
+	if (m_camera_pose_ready) {
+		glBindVertexArray(m_camera_vertex_array.id());
+		glDrawArrays(GL_LINES, 0, m_camera_line_vertex_count);
+	}
 
 	m_point_program.set_uniform(m_point_world_to_clip_uniform, world_to_clip);
 	m_point_program.bind();

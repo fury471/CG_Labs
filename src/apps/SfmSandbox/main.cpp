@@ -5,6 +5,7 @@
 #include "sandbox/gfx/OwnershipProbe.hpp"
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
+#include "sandbox/scene/CameraPose.hpp"
 #include "sandbox/scene/PointCloud.hpp"
 #include "sandbox/scene/PointCloudLoader.hpp"
 
@@ -86,8 +87,12 @@ int main()
 	std::string last_reload_status = using_loaded_point_cloud ? "Initial resource file loaded" : "Initial load failed; using procedural fallback";
 	int reload_count = 0;
 
+	// Milestone 9 adds a deterministic camera-pose sample so frustums and a
+	// trajectory can be validated before a real SfM camera import exists.
+	sfm::scene::CameraPoseSet const camera_poses = sfm::scene::CameraPoseSet::make_debug_orbit();
+
 	sfm::gfx::Renderer renderer;
-	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud);
+	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -131,7 +136,11 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 8: Runtime point cloud file reload");
+			ImGui::TextUnformatted("Milestone 9: Camera pose / frustum visualization");
+			ImGui::Text("Camera poses: %zu", camera_poses.size());
+			ImGui::Text("Camera line vertices: %d", renderer.camera_line_vertex_count());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Point cloud reload");
 			ImGui::InputText("Path", point_cloud_path_buffer.data(), point_cloud_path_buffer.size());
 			if (ImGui::Button("Load / Reload")) {
 				std::filesystem::path const requested_path{ std::string{ point_cloud_path_buffer.data() } };
@@ -170,7 +179,7 @@ int main()
 			ImGui::Separator();
 			ImGui::TextUnformatted("Renderer status");
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
-			ImGui::Text("Line vertices: %d", renderer.line_vertex_count());
+			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
