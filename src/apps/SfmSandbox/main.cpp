@@ -6,6 +6,7 @@
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
 #include "sandbox/scene/CameraPose.hpp"
+#include "sandbox/scene/CameraPoseLoader.hpp"
 #include "sandbox/scene/PointCloud.hpp"
 #include "sandbox/scene/PointCloudLoader.hpp"
 
@@ -26,6 +27,7 @@ namespace
 {
 
 constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
+constexpr char const* kDefaultCameraPoseResource = "sandbox/sample_camera_poses.txt";
 
 void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path const& path)
 {
@@ -71,9 +73,9 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Milestone 8 keeps the resource-file loader from Milestone 7, but makes the
-	// source path editable at runtime. A failed reload does not destroy the last
-	// valid cloud; the renderer is updated only after a file has loaded correctly.
+	// Point clouds are file-backed and reloadable at runtime. Failed reloads keep
+	// the last valid cloud, so startup keeps the deterministic procedural cloud as
+	// a fallback only if the sample resource cannot be read.
 	std::filesystem::path const default_point_cloud_path = config::resources_path(kDefaultPointCloudResource);
 	std::array<char, 512> point_cloud_path_buffer{};
 	copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
@@ -87,9 +89,16 @@ int main()
 	std::string last_reload_status = using_loaded_point_cloud ? "Initial resource file loaded" : "Initial load failed; using procedural fallback";
 	int reload_count = 0;
 
-	// Milestone 9 adds a deterministic camera-pose sample so frustums and a
-	// trajectory can be validated before a real SfM camera import exists.
-	sfm::scene::CameraPoseSet const camera_poses = sfm::scene::CameraPoseSet::make_debug_orbit();
+	// Milestone 10 loads camera poses from a checked-in resource file. The M9
+	// deterministic orbit remains a fallback so frustum rendering still works if
+	// the pose file is missing or malformed during development.
+	std::filesystem::path const default_camera_pose_path = config::resources_path(kDefaultCameraPoseResource);
+	sfm::scene::CameraPoseLoadResult camera_pose_load = sfm::scene::load_camera_poses_from_text_file(default_camera_pose_path);
+	bool const using_loaded_camera_poses = camera_pose_load.succeeded;
+	sfm::scene::CameraPoseSet const camera_poses = using_loaded_camera_poses
+		? std::move(camera_pose_load.poses)
+		: sfm::scene::CameraPoseSet::make_debug_orbit();
+	std::string const active_camera_pose_source = using_loaded_camera_poses ? default_camera_pose_path.string() : "procedural fallback";
 
 	sfm::gfx::Renderer renderer;
 	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
@@ -136,8 +145,12 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 9: Camera pose / frustum visualization");
+			ImGui::TextUnformatted("Milestone 10: Camera pose loading from file");
+			ImGui::Text("Camera pose source: %s", active_camera_pose_source.c_str());
 			ImGui::Text("Camera poses: %zu", camera_poses.size());
+			ImGui::Text("Skipped pose lines: %zu", camera_pose_load.skipped_lines);
+			for (std::string const& message : camera_pose_load.messages)
+				ImGui::BulletText("%s", message.c_str());
 			ImGui::Text("Camera line vertices: %d", renderer.camera_line_vertex_count());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Point cloud reload");
