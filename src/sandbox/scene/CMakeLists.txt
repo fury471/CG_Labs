@@ -3,10 +3,12 @@ target_sources (
 	sfm_sandbox_scene
 	PUBLIC
 		"CameraPose.hpp"
+		"CameraPoseLoader.hpp"
 		"PointCloud.hpp"
 		"PointCloudLoader.hpp"
 	PRIVATE
 		"CameraPose.cpp"
+		"CameraPoseLoader.cpp"
 		"PointCloud.cpp"
 		"PointCloudLoader.cpp"
 )
