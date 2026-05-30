@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Buffer.hpp"
+#include "RenderSubmission.hpp"
 #include "ShaderProgram.hpp"
 #include "VertexArray.hpp"
 #include "sandbox/scene/CameraPose.hpp"
@@ -35,6 +36,16 @@ struct PointCloudRenderSettings final
 	bool show_bounds{ true };
 };
 
+struct RendererFrameStatistics final
+{
+	int submitted_items{ 0 };
+	int draw_calls{ 0 };
+	int program_binds{ 0 };
+	int vertex_array_binds{ 0 };
+	int line_vertices_drawn{ 0 };
+	int point_vertices_drawn{ 0 };
+};
+
 class Renderer final
 {
 public:
@@ -59,11 +70,15 @@ public:
 	[[nodiscard]] GLsizei camera_line_vertex_count() const noexcept { return m_camera_line_vertex_count; }
 	[[nodiscard]] GLsizei bounds_line_vertex_count() const noexcept { return m_bounds_line_vertex_count; }
 	[[nodiscard]] bool has_point_cloud_bounds() const noexcept { return m_bounds_ready; }
+	[[nodiscard]] RendererFrameStatistics frame_statistics() const noexcept { return m_last_frame_statistics; }
 
 private:
 	[[nodiscard]] RendererBuildResult initialise_grid_pipeline();
 	[[nodiscard]] RendererBuildResult initialise_point_pipeline_if_needed();
 	[[nodiscard]] RendererBuildResult initialise_camera_pose_pipeline(sfm::scene::CameraPoseSet const& camera_poses);
+	void draw_submission(RenderSubmission const& submission,
+	                     glm::mat4 const& world_to_clip,
+	                     RendererFrameStatistics& statistics) const noexcept;
 
 	ShaderProgram m_grid_program{};
 	UniformLocation m_grid_world_to_clip_uniform{};
@@ -76,7 +91,6 @@ private:
 	UniformLocation m_point_size_uniform{};
 	UniformLocation m_point_colour_mode_uniform{};
 	UniformLocation m_point_solid_colour_uniform{};
-	UniformLocation m_point_height_range_uniform{};
 	VertexArray m_point_vertex_array{};
 	Buffer m_point_vertex_buffer{};
 	GLsizei m_point_count{ 0 };
@@ -94,6 +108,7 @@ private:
 	bool m_point_program_ready{ false };
 	bool m_camera_pose_ready{ false };
 	bool m_ready{ false };
+	mutable RendererFrameStatistics m_last_frame_statistics{};
 };
 
 } // namespace sfm::gfx
