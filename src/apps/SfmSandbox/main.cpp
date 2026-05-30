@@ -26,7 +26,8 @@
 namespace
 {
 
-constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
+constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud_ascii.ply";
+constexpr char const* kLegacyTextPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
 constexpr char const* kDefaultCameraPoseResource = "sandbox/sample_camera_poses.txt";
 
 void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path const& path)
@@ -35,6 +36,19 @@ void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path co
 	buffer.fill('\0');
 	std::size_t const count = std::min(text.size(), buffer.size() - 1u);
 	std::copy_n(text.data(), count, buffer.data());
+}
+
+void draw_point_cloud_statistics(sfm::scene::PointCloudStatistics const& statistics)
+{
+	ImGui::Text("Dataset point count: %zu", statistics.point_count);
+	ImGui::Text("Approx. CPU storage: %zu bytes", statistics.approximate_cpu_bytes);
+	if (!statistics.has_bounds) {
+		ImGui::TextUnformatted("Bounds: unavailable");
+		return;
+	}
+	ImGui::Text("Bounds min: %.3f, %.3f, %.3f", statistics.bounds_min.x, statistics.bounds_min.y, statistics.bounds_min.z);
+	ImGui::Text("Bounds max: %.3f, %.3f, %.3f", statistics.bounds_max.x, statistics.bounds_max.y, statistics.bounds_max.z);
+	ImGui::Text("Bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
 }
 
 } // namespace
@@ -73,20 +87,21 @@ int main()
 	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
 	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
 
-	// Point clouds are file-backed and reloadable at runtime. Failed reloads keep
-	// the last valid cloud, so startup keeps the deterministic procedural cloud as
-	// a fallback only if the sample resource cannot be read.
+	// Point clouds are file-backed and reloadable at runtime. Milestone 12 makes
+	// the default dataset an ASCII PLY file while preserving the earlier text
+	// loader through the extension-based dispatcher.
 	std::filesystem::path const default_point_cloud_path = config::resources_path(kDefaultPointCloudResource);
+	std::filesystem::path const legacy_text_point_cloud_path = config::resources_path(kLegacyTextPointCloudResource);
 	std::array<char, 512> point_cloud_path_buffer{};
 	copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
 
-	sfm::scene::PointCloudLoadResult point_cloud_load = sfm::scene::load_point_cloud_from_text_file(default_point_cloud_path);
+	sfm::scene::PointCloudLoadResult point_cloud_load = sfm::scene::load_point_cloud_from_file(default_point_cloud_path);
 	bool using_loaded_point_cloud = point_cloud_load.succeeded;
 	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud
 		? std::move(point_cloud_load.cloud)
 		: sfm::scene::PointCloud::make_debug_cluster();
 	std::string active_point_cloud_source = using_loaded_point_cloud ? default_point_cloud_path.string() : "procedural fallback";
-	std::string last_reload_status = using_loaded_point_cloud ? "Initial resource file loaded" : "Initial load failed; using procedural fallback";
+	std::string last_reload_status = using_loaded_point_cloud ? "Initial point cloud loaded" : "Initial load failed; using procedural fallback";
 	int reload_count = 0;
 
 	// Milestone 10 loads camera poses from a checked-in resource file. The M9
@@ -145,7 +160,10 @@ int main()
 			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 10: Camera pose loading from file");
+			ImGui::TextUnformatted("Milestone 12: PLY point cloud import and dataset statistics");
+			draw_point_cloud_statistics(point_cloud.statistics());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Camera poses");
 			ImGui::Text("Camera pose source: %s", active_camera_pose_source.c_str());
 			ImGui::Text("Camera poses: %zu", camera_poses.size());
 			ImGui::Text("Skipped pose lines: %zu", camera_pose_load.skipped_lines);
@@ -157,7 +175,7 @@ int main()
 			ImGui::InputText("Path", point_cloud_path_buffer.data(), point_cloud_path_buffer.size());
 			if (ImGui::Button("Load / Reload")) {
 				std::filesystem::path const requested_path{ std::string{ point_cloud_path_buffer.data() } };
-				sfm::scene::PointCloudLoadResult candidate_load = sfm::scene::load_point_cloud_from_text_file(requested_path);
+				sfm::scene::PointCloudLoadResult candidate_load = sfm::scene::load_point_cloud_from_file(requested_path);
 				if (candidate_load.succeeded) {
 					sfm::scene::PointCloud candidate_cloud = std::move(candidate_load.cloud);
 					sfm::gfx::RendererBuildResult candidate_renderer_build = renderer.reload_point_cloud(candidate_cloud);
@@ -179,8 +197,12 @@ int main()
 				}
 			}
 			ImGui::SameLine();
-			if (ImGui::Button("Reset to sample")) {
+			if (ImGui::Button("Reset to PLY sample")) {
 				copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to text sample")) {
+				copy_path_to_buffer(point_cloud_path_buffer, legacy_text_point_cloud_path);
 			}
 			ImGui::Text("Active source: %s", using_loaded_point_cloud ? active_point_cloud_source.c_str() : "procedural fallback");
 			ImGui::Text("Last reload: %s", last_reload_status.c_str());
