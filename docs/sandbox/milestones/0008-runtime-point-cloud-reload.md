@@ -1,7 +1,7 @@
 # Milestone 8 Record: Runtime File Selection / Reload Path
 
 - **Milestone:** 8
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m8-runtime-point-cloud-reload`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -37,7 +37,26 @@ The renderer keeps the grid/axes pipeline alive and replaces only the point-clou
 
 Reload is transactional: replacement GPU resources are committed only after the full replacement path succeeds. A failed reload keeps the previous visible point cloud.
 
-## Local validation required
+## Local validation status
+
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot showing the runtime reload UI;
+- valid sample reload succeeds after `Reset to sample` then `Load / Reload`;
+- `Last reload: Reload succeeded` is visible;
+- successful reload count increments after repeated valid reloads;
+- active source is `res/sandbox/sample_point_cloud.xyzrgb`;
+- CPU point samples and GPU point vertices both report `21`;
+- skipped input lines report `0`;
+- invalid/malformed reload reports failure while the previous point cloud remains visible;
+- renderer remains ready after failed reload;
+- Milestone 3 shader probe remains passed;
+- Milestone 2 ownership probe remains passed;
+- developer confirmation that camera movement, resize/aspect behavior, legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -53,21 +72,21 @@ Manual checklist:
 
 | Check | Result |
 |---|---|
-| Existing `EDAF80_Assignment1` launches and interaction still works | Pending |
-| Existing `EDAN35_Assignment2` launches | Pending |
-| `SfmSandbox` launches with status panel | Pending |
-| Grid/axes and sample point cloud are visible on startup | Pending |
-| Panel shows Milestone 8 runtime reload section | Pending |
-| Pressing `Load / Reload` on the valid sample path succeeds | Pending |
-| Successful reload counter increments | Pending |
-| CPU and GPU point counts remain positive and match | Pending |
-| Entering an invalid path reports failure | Pending |
-| Invalid reload keeps the previous point cloud visible | Pending |
-| `Reset to sample` restores the path field | Pending |
-| Camera movement and resize/aspect behavior still work | Pending |
-| Milestone 3 shader probe still passes | Pending |
-| Milestone 2 ownership probe still passes | Pending |
-| `F2`, `F3`, `F11`, `Esc` still work | Pending |
+| Existing `EDAF80_Assignment1` launches and interaction still works | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` launches with status panel | Passed — screenshot confirmed |
+| Grid/axes and sample point cloud are visible on startup | Passed — screenshot confirmed |
+| Panel shows Milestone 8 runtime reload section | Passed — screenshot confirmed |
+| Pressing `Load / Reload` on the valid sample path succeeds | Passed — screenshot confirmed |
+| Successful reload counter increments | Passed — screenshot confirmed |
+| CPU and GPU point counts remain positive and match | Passed — screenshot confirmed (`21`) |
+| Entering an invalid path reports failure | Passed — screenshot confirmed |
+| Invalid reload keeps the previous point cloud visible | Passed — screenshot confirmed |
+| `Reset to sample` restores the path field | Passed — developer confirmed |
+| Camera movement and resize/aspect behavior still work | Passed — developer confirmed |
+| Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `F2`, `F3`, `F11`, `Esc` still work | Passed — developer confirmed |
 
 ## Known limitations
 
@@ -76,6 +95,14 @@ Manual checklist:
 - Point buffers and vertex arrays are rebuilt on successful reload.
 - The loader still supports only the small milestone text format.
 
-## Completion gate
+## Completion assessment
 
-Milestone 8 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Valid runtime reload updates the active point cloud | Passed — screenshot confirmed |
+| Failed runtime reload preserves the previous visible cloud | Passed — screenshot confirmed |
+| CPU/GPU point counts match after reload | Passed — screenshot confirmed (`21`) |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 8 is complete and may be merged into `feature/sfm-visualization-sandbox`.
