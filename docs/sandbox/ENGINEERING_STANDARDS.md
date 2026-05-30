@@ -2,7 +2,9 @@
 
 ## 1. Purpose
 
-This document defines working rules for new code in the SfM Visualization Sandbox. The rules are intended to produce software that is easy to learn from, safe to change, measurable in performance and suitable for gradual development into a focused visualization product.
+This document defines working rules for new code in the SfM Visualization Sandbox. The rules are intended to produce software that is easy to learn from, safe to change, measurable in performance and suitable for gradual development into a focused, powerful and extensible visualization tool.
+
+The project goal is not a throwaway prototype. Prototype-like samples are allowed only when they reduce risk on the path toward a robust tool. Milestone implementations must avoid shortcuts that block later data formats, renderer architecture, validation, profiling or product-quality UX.
 
 These standards apply to new code under:
 

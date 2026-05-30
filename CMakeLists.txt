@@ -17,6 +17,11 @@ project (
 	LANGUAGES CXX C
 )
 
+# Provides the standard BUILD_TESTING option and CTest integration without
+# forcing any individual test target to exist. Sandbox tests are added below
+# after the libraries they depend on are declared.
+include (CTest)
+
 # Set build type.
 set (CMAKE_CONFIGURATION_TYPES "Debug;Release;RelWithDebInfo")
 if (NOT CMAKE_BUILD_TYPE)
@@ -119,6 +124,9 @@ add_subdirectory ("${CMAKE_SOURCE_DIR}/src/sandbox")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/apps/SfmSandbox")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/EDAF80")
 add_subdirectory ("${CMAKE_SOURCE_DIR}/src/EDAN35")
+if (BUILD_TESTING)
+	add_subdirectory ("${CMAKE_SOURCE_DIR}/tests")
+endif ()
 
 install (DIRECTORY ${CMAKE_SOURCE_DIR}/shaders DESTINATION bin)
 install (DIRECTORY ${CMAKE_SOURCE_DIR}/res DESTINATION bin)

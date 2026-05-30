@@ -2,7 +2,9 @@
 
 ## Purpose
 
-This roadmap defines the current direction for the SfM Visualization Sandbox after the completion of Milestone 10. It records the validated prototype history and schedules the remaining work in dependency order.
+This roadmap defines the current direction for the SfM Visualization Sandbox after the completion of Milestone 10. It records the validated foundation history and schedules the remaining work in dependency order.
+
+The goal is not to make a disposable prototype. The goal is to build a powerful, best-practice and extensible SfM visualization tool. Early milestones are foundation-building milestones toward that tool.
 
 The project remains intentionally conservative: each integration step must leave the repository understandable, buildable and locally runnable. Correctness, architectural clarity, regression safety, measured performance and honest documentation take priority over quickly accumulating features.
 
@@ -24,13 +26,13 @@ Completed work is merged into this branch only after:
 
 ## Roadmap status after Milestone 10
 
-Milestones 0-10 are complete and form the first validated prototype phase. Future milestones now continue from Milestone 11, but only because this roadmap explicitly schedules them.
+Milestones 0-10 are complete and form the first validated foundation phase. Future milestones now continue from Milestone 11, but only because this roadmap explicitly schedules them.
 
 Do not introduce or rename milestone numbers by conversation alone. Future milestone changes must be made in this document first.
 
 ---
 
-## Completed prototype phase
+## Completed foundation phase
 
 ### Milestone 0 — Baseline and documentation
 
@@ -163,7 +165,7 @@ Delivered:
 
 ## Current capability map
 
-The completed prototype now supports:
+The completed foundation now supports:
 
 - a separate `SfmSandbox` product executable;
 - target-local sandbox build policy;
@@ -182,7 +184,7 @@ The completed prototype now supports:
 - visible diagnostics and regression probes;
 - CI-validated builds on Windows, Ubuntu and macOS for completed PRs.
 
-This is a strong prototype foundation, not a finished reconstruction viewer.
+This is a strong tool foundation, not a finished reconstruction viewer.
 
 ---
 
@@ -377,7 +379,7 @@ Recommended cadence:
 
 ### Milestone 20 — Product hardening, packaging and release readiness
 
-**Purpose:** Move from strong prototype to a maintainable, distributable focused tool foundation.
+**Purpose:** Move from a strong foundation to a maintainable, distributable focused tool.
 
 **Planned scope:**
 

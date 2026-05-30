@@ -2,7 +2,9 @@
 
 ## Project charter
 
-This development line evolves `CG_Labs` into a small, rigorous real-time **3D reconstruction and Structure-from-Motion (SfM) visualization sandbox**. It is intended to be both a learning project in modern real-time graphics and a credible foundation for a focused visualization product.
+This development line evolves `CG_Labs` into a rigorous real-time **3D reconstruction and Structure-from-Motion (SfM) visualization tool**. It is intended to be both a learning project in modern real-time graphics and a credible foundation for a focused visualization product.
+
+The goal is not to stop at a prototype. The goal is to build a powerful, best-practice and extensible tool whose architecture can grow toward real reconstruction datasets, larger scenes, richer inspection workflows and measured rendering performance.
 
 The work is developed on:
 
@@ -57,7 +59,7 @@ Baseline validation status, recorded on 2026-05-29:
 2. **Efficiency.** Rendering design enables state reduction, batching, instancing and profiling; performance claims are measured.
 3. **High cohesion and low coupling.** Backend graphics objects, scene data, SfM visualization features and application coordination are separate layers.
 4. **High learning value.** Each milestone must explain which rendering or software-design concept is being learned and provide observable validation.
-5. **Commercial extensibility.** The architecture should support a focused product, while avoiding premature claims that it is a general-purpose engine.
+5. **Product extensibility.** The architecture should support a focused, powerful visualization tool while avoiding premature claims that it is a general-purpose engine.
 6. **Low cost.** Use stable open-source dependencies already present where suitable; avoid unnecessary infrastructure and premature complexity.
 
 ## What will not be done
