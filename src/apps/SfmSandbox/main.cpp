@@ -16,6 +16,7 @@
 #include <clocale>
 #include <cstdlib>
 #include <string>
+#include <utility>
 
 int main()
 {
