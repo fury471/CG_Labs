@@ -51,6 +51,9 @@ jobs:
         set -o pipefail
         cmake --build "${{ github.workspace }}/build" --config ${{ matrix.build_type }} -- -k 0 2>&1 | tee "build-${{ matrix.build_type }}-${{ matrix.compiler.cc }}.log"
 
+    - name: Test
+      run: ctest --test-dir "${{ github.workspace }}/build" --build-config ${{ matrix.build_type }} --output-on-failure
+
     - name: Upload failed build log
       if: failure()
       uses: actions/upload-artifact@v4
