@@ -2,6 +2,7 @@
 
 #include <glad/gl.h>
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <span>
@@ -68,10 +69,18 @@ layout(location = 0) in vec3 in_position;
 layout(location = 1) in vec3 in_colour;
 uniform mat4 u_world_to_clip;
 uniform float u_point_size;
+uniform float u_colour_mode;
+uniform vec3 u_solid_colour;
 out vec3 v_colour;
 void main()
 {
-	v_colour = in_colour;
+	vec3 height_colour = mix(vec3(0.15, 0.45, 1.0), vec3(1.0, 0.9, 0.15), clamp(in_position.y * 0.5, 0.0, 1.0));
+	if (u_colour_mode < 0.5)
+		v_colour = in_colour;
+	else if (u_colour_mode < 1.5)
+		v_colour = height_colour;
+	else
+		v_colour = u_solid_colour;
 	gl_Position = u_world_to_clip * vec4(in_position, 1.0);
 	gl_PointSize = u_point_size;
 }
@@ -102,10 +111,7 @@ DebugVertex make_debug_vertex(glm::vec3 const& position, glm::vec3 const& colour
 	return DebugVertex{ { position.x, position.y, position.z }, { colour.r, colour.g, colour.b } };
 }
 
-void add_line(std::vector<DebugVertex>& vertices,
-              glm::vec3 const& a,
-              glm::vec3 const& b,
-              glm::vec3 const& colour)
+void add_line(std::vector<DebugVertex>& vertices, glm::vec3 const& a, glm::vec3 const& b, glm::vec3 const& colour)
 {
 	vertices.push_back(make_debug_vertex(a, colour));
 	vertices.push_back(make_debug_vertex(b, colour));
@@ -140,15 +146,41 @@ std::vector<PointVertex> build_point_vertices(sfm::scene::PointCloud const& poin
 	return vertices;
 }
 
+std::vector<DebugVertex> build_bounds_vertices(sfm::scene::PointCloudStatistics const& statistics)
+{
+	std::vector<DebugVertex> vertices;
+	if (!statistics.has_bounds)
+		return vertices;
+
+	glm::vec3 const mn = statistics.bounds_min;
+	glm::vec3 const mx = statistics.bounds_max;
+	std::array<glm::vec3, 8> const corners{
+		glm::vec3{ mn.x, mn.y, mn.z }, glm::vec3{ mx.x, mn.y, mn.z },
+		glm::vec3{ mx.x, mn.y, mx.z }, glm::vec3{ mn.x, mn.y, mx.z },
+		glm::vec3{ mn.x, mx.y, mn.z }, glm::vec3{ mx.x, mx.y, mn.z },
+		glm::vec3{ mx.x, mx.y, mx.z }, glm::vec3{ mn.x, mx.y, mx.z },
+	};
+	glm::vec3 const colour{ 1.0f, 0.95f, 0.25f };
+	vertices.reserve(24u);
+	add_line(vertices, corners[0], corners[1], colour);
+	add_line(vertices, corners[1], corners[2], colour);
+	add_line(vertices, corners[2], corners[3], colour);
+	add_line(vertices, corners[3], corners[0], colour);
+	add_line(vertices, corners[4], corners[5], colour);
+	add_line(vertices, corners[5], corners[6], colour);
+	add_line(vertices, corners[6], corners[7], colour);
+	add_line(vertices, corners[7], corners[4], colour);
+	add_line(vertices, corners[0], corners[4], colour);
+	add_line(vertices, corners[1], corners[5], colour);
+	add_line(vertices, corners[2], corners[6], colour);
+	add_line(vertices, corners[3], corners[7], colour);
+	return vertices;
+}
+
 glm::vec3 transform_point(glm::mat4 const& matrix, glm::vec3 const& point)
 {
 	glm::vec4 const transformed = matrix * glm::vec4{ point, 1.0f };
 	return glm::vec3{ transformed } / transformed.w;
-}
-
-glm::vec3 camera_position(sfm::scene::CameraPose const& pose)
-{
-	return transform_point(pose.camera_to_world, glm::vec3{ 0.0f });
 }
 
 std::vector<DebugVertex> build_camera_pose_vertices(sfm::scene::CameraPoseSet const& camera_poses)
@@ -157,8 +189,6 @@ std::vector<DebugVertex> build_camera_pose_vertices(sfm::scene::CameraPoseSet co
 	if (camera_poses.empty())
 		return vertices;
 
-	// Each camera contributes eight frustum lines plus one local-forward marker.
-	// Consecutive cameras also contribute one trajectory segment.
 	constexpr std::size_t line_vertices_per_camera = 18u;
 	std::size_t const trajectory_vertices = camera_poses.size() > 1u ? (camera_poses.size() - 1u) * 2u : 0u;
 	vertices.reserve(camera_poses.size() * line_vertices_per_camera + trajectory_vertices);
@@ -184,17 +214,12 @@ std::vector<DebugVertex> build_camera_pose_vertices(sfm::scene::CameraPoseSet co
 		for (std::size_t i = 0; i < local_corners.size(); ++i)
 			corners[i] = transform_point(pose.camera_to_world, local_corners[i]);
 
-		// Four rays from camera center to the image-plane corners.
 		for (glm::vec3 const& corner : corners)
 			add_line(vertices, origin, corner, pose.colour);
-
-		// Four image-plane edges.
 		add_line(vertices, corners[0], corners[1], pose.colour);
 		add_line(vertices, corners[1], corners[2], pose.colour);
 		add_line(vertices, corners[2], corners[3], pose.colour);
 		add_line(vertices, corners[3], corners[0], pose.colour);
-
-		// A small forward marker makes the camera viewing direction easier to read.
 		glm::vec3 const forward_tip = transform_point(pose.camera_to_world, glm::vec3{ 0.0f, 0.0f, near_depth * 1.55f });
 		add_line(vertices, origin, forward_tip, glm::vec3{ 0.9f, 0.9f, 1.0f });
 
@@ -313,7 +338,6 @@ RendererBuildResult Renderer::initialise_camera_pose_pipeline(sfm::scene::Camera
 		add_message(result, "Camera pose vertex-buffer upload failed");
 		return result;
 	}
-
 	m_camera_vertex_array = VertexArray{ "SfmSandbox camera pose vertex array" };
 	if (!configure_vertex_layout(m_camera_vertex_array, m_camera_vertex_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
 		add_message(result, "Camera pose vertex-array layout failed");
@@ -347,21 +371,21 @@ RendererBuildResult Renderer::initialise_point_pipeline_if_needed()
 	m_point_program = std::move(point_build.program);
 	m_point_world_to_clip_uniform = m_point_program.uniform_location("u_world_to_clip");
 	m_point_size_uniform = m_point_program.uniform_location("u_point_size");
-	if (!m_point_world_to_clip_uniform || !m_point_size_uniform) {
+	m_point_colour_mode_uniform = m_point_program.uniform_location("u_colour_mode");
+	m_point_solid_colour_uniform = m_point_program.uniform_location("u_solid_colour");
+	if (!m_point_world_to_clip_uniform || !m_point_size_uniform || !m_point_colour_mode_uniform || !m_point_solid_colour_uniform) {
 		add_message(result, "Point shader build failed: required uniform is missing");
 		return result;
 	}
-	m_point_program.set_uniform(m_point_size_uniform, 5.0f);
 	m_point_program_ready = true;
 	result.succeeded = true;
-	add_message(result, "Point shader compiled and cached uniforms");
+	add_message(result, "Point shader compiled and cached inspection uniforms");
 	return result;
 }
 
 RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& point_cloud)
 {
 	RendererBuildResult result{};
-
 	if (!m_grid_ready) {
 		add_message(result, "Point cloud reload failed: grid pipeline is not ready");
 		return result;
@@ -382,27 +406,44 @@ RendererBuildResult Renderer::reload_point_cloud(sfm::scene::PointCloud const& p
 		add_message(result, "Point vertex-buffer upload failed; previous point cloud kept");
 		return result;
 	}
-
 	VertexArray replacement_vertex_array{ "SfmSandbox point vertex array" };
 	if (!configure_vertex_layout(replacement_vertex_array, replacement_buffer.id(), static_cast<GLsizei>(sizeof(PointVertex)))) {
 		add_message(result, "Point vertex-array layout failed; previous point cloud kept");
 		return result;
 	}
 
-	// Commit only after the full replacement path succeeds. This preserves the
-	// previous visible cloud if a reload fails after file parsing but before GPU
-	// resource setup completes.
+	std::vector<DebugVertex> const bounds_vertices = build_bounds_vertices(point_cloud.statistics());
+	Buffer replacement_bounds_buffer{ "SfmSandbox point bounds vertex buffer" };
+	VertexArray replacement_bounds_vertex_array{ "SfmSandbox point bounds vertex array" };
+	bool const replacement_bounds_ready = !bounds_vertices.empty();
+	if (replacement_bounds_ready) {
+		if (!replacement_bounds_buffer.set_storage(std::span<DebugVertex const>{ bounds_vertices.data(), bounds_vertices.size() })) {
+			add_message(result, "Point bounds vertex-buffer upload failed; previous point cloud kept");
+			return result;
+		}
+		if (!configure_vertex_layout(replacement_bounds_vertex_array, replacement_bounds_buffer.id(), static_cast<GLsizei>(sizeof(DebugVertex)))) {
+			add_message(result, "Point bounds vertex-array layout failed; previous point cloud kept");
+			return result;
+		}
+	}
+
 	m_point_vertex_buffer = std::move(replacement_buffer);
 	m_point_vertex_array = std::move(replacement_vertex_array);
 	m_point_count = static_cast<GLsizei>(point_vertices.size());
+	m_bounds_vertex_buffer = std::move(replacement_bounds_buffer);
+	m_bounds_vertex_array = std::move(replacement_bounds_vertex_array);
+	m_bounds_line_vertex_count = static_cast<GLsizei>(bounds_vertices.size());
+	m_bounds_ready = replacement_bounds_ready;
 	m_ready = m_grid_ready && m_camera_pose_ready;
 
 	add_message(result, "Point cloud GPU resources rebuilt from loaded data");
+	if (m_bounds_ready)
+		add_message(result, "Point cloud bounds GPU layout configured");
 	result.succeeded = true;
 	return result;
 }
 
-void Renderer::render(glm::mat4 const& world_to_clip) const noexcept
+void Renderer::render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept
 {
 	if (!m_ready)
 		return;
@@ -412,12 +453,20 @@ void Renderer::render(glm::mat4 const& world_to_clip) const noexcept
 	glBindVertexArray(m_grid_vertex_array.id());
 	glDrawArrays(GL_LINES, 0, m_line_vertex_count);
 
+	if (point_settings.show_bounds && m_bounds_ready) {
+		glBindVertexArray(m_bounds_vertex_array.id());
+		glDrawArrays(GL_LINES, 0, m_bounds_line_vertex_count);
+	}
 	if (m_camera_pose_ready) {
 		glBindVertexArray(m_camera_vertex_array.id());
 		glDrawArrays(GL_LINES, 0, m_camera_line_vertex_count);
 	}
 
+	float const clamped_point_size = std::clamp(point_settings.point_size, 1.0f, 32.0f);
 	m_point_program.set_uniform(m_point_world_to_clip_uniform, world_to_clip);
+	m_point_program.set_uniform(m_point_size_uniform, clamped_point_size);
+	m_point_program.set_uniform(m_point_colour_mode_uniform, static_cast<float>(point_settings.colour_mode));
+	m_point_program.set_uniform(m_point_solid_colour_uniform, point_settings.solid_colour);
 	m_point_program.bind();
 	glBindVertexArray(m_point_vertex_array.id());
 	glEnable(GL_PROGRAM_POINT_SIZE);
