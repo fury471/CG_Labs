@@ -39,7 +39,6 @@ namespace
 	glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &length);
 	if (length <= 1)
 		return {};
-
 	std::string log(static_cast<std::size_t>(length), '\0');
 	GLsizei written = 0;
 	glGetShaderInfoLog(shader, length, &written, log.data());
@@ -53,7 +52,6 @@ namespace
 	glGetProgramiv(program, GL_INFO_LOG_LENGTH, &length);
 	if (length <= 1)
 		return {};
-
 	std::string log(static_cast<std::size_t>(length), '\0');
 	GLsizei written = 0;
 	glGetProgramInfoLog(program, length, &written, log.data());
@@ -85,7 +83,6 @@ void detach_and_delete_shaders(GLuint program, std::vector<GLuint>& shaders) noe
 		message = "could not open shader file '" + path.string() + "'";
 		return false;
 	}
-
 	std::ostringstream stream;
 	stream << file.rdbuf();
 	if (file.bad()) {
@@ -136,85 +133,68 @@ ShaderProgramBuildResult ShaderProgram::build(std::span<ShaderSource const> sour
 {
 	ShaderProgramBuildResult result{};
 	std::ostringstream log;
-
 	if (sources.empty()) {
 		log << "ShaderProgram build failed: no shader sources were provided.\n";
 		result.log = log.str();
 		return result;
 	}
-
 	ShaderProgram program{ debug_label };
 	if (!program) {
 		log << "ShaderProgram build failed: glCreateProgram returned 0.\n";
 		result.log = log.str();
 		return result;
 	}
-
 	std::vector<GLuint> compiled_shaders;
 	compiled_shaders.reserve(sources.size());
-
 	for (ShaderSource const& shader_source : sources) {
 		if (!source_size_is_supported(shader_source.source)) {
-			log << "ShaderProgram build failed: " << stage_name(shader_source.stage)
-			    << " source '" << shader_source.debug_name << "' is too large for OpenGL length parameters.\n";
+			log << "ShaderProgram build failed: " << stage_name(shader_source.stage) << " source '" << shader_source.debug_name << "' is too large for OpenGL length parameters.\n";
 			detach_and_delete_shaders(program.id(), compiled_shaders);
 			program.reset();
 			result.log = log.str();
 			return result;
 		}
-
 		GLuint const shader = glCreateShader(to_gl_enum(shader_source.stage));
 		if (shader == 0u) {
-			log << "ShaderProgram build failed: glCreateShader returned 0 for "
-			    << stage_name(shader_source.stage) << " source '" << shader_source.debug_name << "'.\n";
+			log << "ShaderProgram build failed: glCreateShader returned 0 for " << stage_name(shader_source.stage) << " source '" << shader_source.debug_name << "'.\n";
 			detach_and_delete_shaders(program.id(), compiled_shaders);
 			program.reset();
 			result.log = log.str();
 			return result;
 		}
-
 		detail::label_object(GL_SHADER, shader, shader_source.debug_name);
 		char const* source_data = shader_source.source.data();
 		GLint const source_length = static_cast<GLint>(shader_source.source.size());
 		glShaderSource(shader, 1, &source_data, &source_length);
 		glCompileShader(shader);
-
 		GLint compiled = GL_FALSE;
 		glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
 		if (compiled != GL_TRUE) {
-			log << "Shader compile failed [" << stage_name(shader_source.stage) << ": "
-			    << shader_source.debug_name << "]\n"
-			    << shader_log(shader) << '\n';
+			log << "Shader compile failed [" << stage_name(shader_source.stage) << ": " << shader_source.debug_name << "]\n" << shader_log(shader) << '\n';
 			glDeleteShader(shader);
 			detach_and_delete_shaders(program.id(), compiled_shaders);
 			program.reset();
 			result.log = log.str();
 			return result;
 		}
-
 		glAttachShader(program.id(), shader);
 		compiled_shaders.push_back(shader);
-		log << "Shader compile passed [" << stage_name(shader_source.stage) << ": "
-		    << shader_source.debug_name << "]\n";
+		log << "Shader compile passed [" << stage_name(shader_source.stage) << ": " << shader_source.debug_name << "]\n";
 	}
-
 	glLinkProgram(program.id());
 	GLint linked = GL_FALSE;
 	glGetProgramiv(program.id(), GL_LINK_STATUS, &linked);
 	std::string const link_log = program_log(program.id());
 	detach_and_delete_shaders(program.id(), compiled_shaders);
-
 	if (linked != GL_TRUE) {
 		log << "Shader link failed [" << debug_label << "]\n" << link_log << '\n';
 		program.reset();
 		result.log = log.str();
 		return result;
 	}
-
 	log << "Shader link passed [" << debug_label << "]\n";
 	if (!link_log.empty())
 		log << link_log << '\n';
-
 	result.succeeded = true;
 	result.program = std::move(program);
 	result.log = log.str();
@@ -227,10 +207,11 @@ ShaderProgramBuildResult ShaderProgram::build_from_files(std::span<ShaderFileSou
 	ShaderProgramBuildResult result{};
 	std::ostringstream log;
 	std::vector<std::string> owned_sources;
+	std::vector<std::string> owned_debug_names;
 	std::vector<ShaderSource> loaded_sources;
 	owned_sources.reserve(sources.size());
+	owned_debug_names.reserve(sources.size());
 	loaded_sources.reserve(sources.size());
-
 	for (ShaderFileSource const& file_source : sources) {
 		std::string content;
 		std::string message;
@@ -240,10 +221,10 @@ ShaderProgramBuildResult ShaderProgram::build_from_files(std::span<ShaderFileSou
 			return result;
 		}
 		owned_sources.push_back(std::move(content));
-		loaded_sources.push_back(ShaderSource{ file_source.stage, owned_sources.back(), file_source.path.string() });
-		log << "Loaded shader file [" << stage_name(file_source.stage) << ": " << file_source.path.string() << "]\n";
+		owned_debug_names.push_back(file_source.path.string());
+		loaded_sources.push_back(ShaderSource{ file_source.stage, owned_sources.back(), owned_debug_names.back() });
+		log << "Loaded shader file [" << stage_name(file_source.stage) << ": " << owned_debug_names.back() << "]\n";
 	}
-
 	ShaderProgramBuildResult build_result = build(loaded_sources, debug_label);
 	log << build_result.log;
 	build_result.log = log.str();
@@ -270,7 +251,6 @@ UniformLocation ShaderProgram::uniform_location(std::string_view name) const
 	auto const found = m_uniform_locations.find(key);
 	if (found != m_uniform_locations.end())
 		return found->second;
-
 	UniformLocation const location{ m_id != 0u ? glGetUniformLocation(m_id, key.c_str()) : -1 };
 	m_uniform_locations.emplace(std::move(key), location);
 	return location;
