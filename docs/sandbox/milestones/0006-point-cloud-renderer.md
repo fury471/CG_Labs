@@ -1,7 +1,7 @@
 # Milestone 6 Record: PointCloud Data Model and First Point Renderer
 
 - **Milestone:** 6
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m6-point-cloud-renderer`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -80,9 +80,23 @@ Milestone 2 regression: GPU RAII ownership
 | Milestone 3 and 2 probes remain visible | `SfmSandbox` still displays both regression probes |
 | Legacy assignments remain untouched | No `src/EDAF80/` or `src/EDAN35/` source file is modified |
 
-## Local validation required
+## Local validation status
 
-From the Visual Studio 2026 x64 Developer Command Prompt:
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` running with grid/axes and coloured point cloud visible;
+- `Sandbox status` panel visible;
+- `Renderer: ready` visible;
+- line vertex count reported as positive;
+- CPU point samples and GPU point vertices both reported as `288`;
+- renderer messages report grid shader/cache setup, grid GPU layout, point shader/cache setup, point GPU layout and central renderer readiness;
+- Milestone 3 shader probe remains passed in the same run;
+- Milestone 2 ownership probe remains passed in the same run;
+- developer confirmation that camera movement, resize/aspect behavior, legacy regression and sandbox control checks also passed.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -98,21 +112,21 @@ Manual launch checklist:
 
 | Executable | Required observation | Result |
 |---|---|---|
-| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Pending |
-| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Pending |
-| `SfmSandbox` | Window opens and the status panel is visible | Pending |
-| `SfmSandbox` | Grid/axes remain visible | Pending |
-| `SfmSandbox` | Coloured point cloud is visible above the grid | Pending |
-| `SfmSandbox` | Panel shows `Milestone 6: PointCloud data model and first point renderer` | Pending |
-| `SfmSandbox` | Panel shows `Renderer: ready` | Pending |
-| `SfmSandbox` | CPU point sample count and GPU point vertex count are positive and match | Pending |
-| `SfmSandbox` | Camera movement changes both grid and point-cloud view consistently | Pending |
-| `SfmSandbox` | Resize/aspect behavior still works | Pending |
-| `SfmSandbox` | Milestone 3 shader probe still passes | Pending |
-| `SfmSandbox` | Milestone 2 ownership probe still passes | Pending |
-| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Pending |
+| `EDAF80_Assignment1` | Existing scene launches and interaction still works | Passed — developer confirmed |
+| `EDAN35_Assignment2` | Existing deferred-rendering reference launches | Passed — developer confirmed |
+| `SfmSandbox` | Window opens and the status panel is visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Grid/axes remain visible | Passed — screenshot confirmed |
+| `SfmSandbox` | Coloured point cloud is visible above the grid | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Milestone 6: PointCloud data model and first point renderer` | Passed — screenshot confirmed |
+| `SfmSandbox` | Panel shows `Renderer: ready` | Passed — screenshot confirmed |
+| `SfmSandbox` | CPU point sample count and GPU point vertex count are positive and match | Passed — screenshot confirmed (`288`) |
+| `SfmSandbox` | Camera movement changes both grid and point-cloud view consistently | Passed — developer confirmed |
+| `SfmSandbox` | Resize/aspect behavior still works | Passed — developer confirmed |
+| `SfmSandbox` | Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `SfmSandbox` | `F2`, `F3`, `F11`, `Esc` still work | Passed — developer confirmed |
 
-## Known limitations at this checkpoint
+## Known limitations at completion
 
 - Point-cloud data is generated procedurally; no file importer exists yet.
 - Points contain only position and colour.
@@ -120,6 +134,17 @@ Manual launch checklist:
 - No spatial indexing, streaming, LOD, picking, point splatting, camera pose rendering or trajectory rendering exists yet.
 - The point shader is still source-string based; file-based shader loading remains deferred.
 
-## Completion gate
+## Completion assessment
 
-Milestone 6 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Clean Ninja configure/build succeeds in the VS 2026 x64 development environment | Passed — developer confirmed |
+| Existing `EDAF80_Assignment1` launches | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| CPU-side `PointCloud` model exists outside `gfx` | Passed — source implementation |
+| `SfmSandbox` renders coloured point cloud through camera transform | Passed — screenshot confirmed |
+| CPU/GPU point counts match | Passed — screenshot confirmed (`288`) |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 6 is complete and may be merged into `feature/sfm-visualization-sandbox`.
