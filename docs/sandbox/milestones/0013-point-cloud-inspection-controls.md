@@ -8,7 +8,7 @@
 
 ## Goal
 
-Make point-cloud inspection more useful before adding new geometry types. M13 adds runtime point display controls, point-cloud bounds visualization and clearer active-dataset information while preserving the M12 PLY/text loading path.
+Make point-cloud inspection more useful before adding new geometry types. M13 adds runtime point display controls, point-cloud bounds visualization, a readable UI scale control and clearer active-dataset information while preserving the M12 PLY/text loading path.
 
 ## Implemented source boundaries
 
@@ -19,6 +19,7 @@ src/apps/SfmSandbox/main.cpp
 
 ## Implemented behavior
 
+- Runtime UI scale control with a larger default for readability.
 - Runtime point-size control.
 - Runtime colour mode control.
 - Source colour mode.
@@ -40,6 +41,7 @@ src/apps/SfmSandbox/main.cpp
 | File picker if feasible | Deferred; current path field is safer and stable |
 | Clearer loader diagnostics layout | Partially implemented |
 | Active dataset summary panel | Implemented |
+| UX polish/readability | Implemented with runtime UI scale |
 
 ## Local validation required
 
@@ -65,6 +67,7 @@ Manual checklist:
 | `EDAN35_Assignment2` launches | Pending |
 | `SfmSandbox` launches | Pending |
 | M13 panel title is visible | Pending |
+| UI text is readable and UI scale slider works | Pending |
 | Point-size slider visibly changes point size | Pending |
 | Source colour mode works | Pending |
 | Height-gradient mode works | Pending |
