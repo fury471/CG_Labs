@@ -1,7 +1,7 @@
 # Milestone 10 Record: Camera Pose Loading from File
 
 - **Milestone:** 10
-- **Status:** Implementation ready for local validation
+- **Status:** Complete — locally validated by the developer
 - **Date:** 2026-05-30
 - **Development branch:** `feature/sfm-m10-camera-loader`
 - **Integration branch:** `feature/sfm-visualization-sandbox`
@@ -44,7 +44,29 @@ through `config::resources_path(...)`. If the pose file loads successfully, the 
 
 The status panel now reports camera-pose source, pose count, skipped pose lines, loader diagnostics and camera-line vertex count.
 
-## Local validation required
+## Local validation status
+
+The developer reported successful completion of the clean build and manual run checks on 2026-05-30 using the intended local VS 2026/Ninja workflow.
+
+Evidence received:
+
+- screenshot of `SfmSandbox` showing camera frustums and trajectory rendered from the loaded pose file;
+- panel shows `Milestone 10: Camera pose loading from file`;
+- panel shows camera pose source as `res/sandbox/sample_camera_poses.txt`;
+- panel shows `Camera poses: 8`;
+- panel shows `Skipped pose lines: 0`;
+- loader diagnostics report the loaded camera-pose file and valid pose count;
+- panel shows `Camera line vertices: 158`;
+- grid/axes and point cloud remain visible;
+- runtime point-cloud reload remains functional and shows valid sample point-cloud diagnostics;
+- renderer status is ready;
+- Milestone 3 shader probe remains passed;
+- Milestone 2 ownership probe remains passed;
+- developer confirmed `EDAF80_Assignment1` still launches correctly;
+- developer confirmed `EDAN35_Assignment2` still launches correctly;
+- developer confirmed camera movement, resize/aspect behavior and sandbox controls still work.
+
+Reference build commands:
 
 ```bat
 cd /d E:\Lund\S1P1\computerGraphics\labs\lab\CG_Labs
@@ -60,22 +82,22 @@ Manual checklist:
 
 | Check | Result |
 |---|---|
-| Existing `EDAF80_Assignment1` launches and interaction still works | Pending |
-| Existing `EDAN35_Assignment2` launches | Pending |
-| `SfmSandbox` launches with status panel | Pending |
-| Grid/axes and point cloud remain visible | Pending |
-| Camera frustums and trajectory remain visible | Pending |
-| Panel shows `Milestone 10: Camera pose loading from file` | Pending |
-| Panel shows camera pose source as sample file path | Pending |
-| Panel shows positive camera-pose count | Pending |
-| Panel shows skipped pose lines as `0` for the clean sample file | Pending |
-| Panel loader diagnostics report loaded file and valid pose count | Pending |
-| Runtime point-cloud reload still succeeds on valid sample path | Pending |
-| Invalid point-cloud reload still preserves the previous visible cloud | Pending |
-| Camera movement and resize/aspect behavior still work | Pending |
-| Milestone 3 shader probe still passes | Pending |
-| Milestone 2 ownership probe still passes | Pending |
-| `F2`, `F3`, `F11`, `Esc` still work | Pending |
+| Existing `EDAF80_Assignment1` launches and interaction still works | Passed — developer confirmed |
+| Existing `EDAN35_Assignment2` launches | Passed — developer confirmed |
+| `SfmSandbox` launches with status panel | Passed — screenshot confirmed |
+| Grid/axes and point cloud remain visible | Passed — screenshot confirmed |
+| Camera frustums and trajectory remain visible | Passed — screenshot confirmed |
+| Panel shows `Milestone 10: Camera pose loading from file` | Passed — screenshot confirmed |
+| Panel shows camera pose source as sample file path | Passed — screenshot confirmed |
+| Panel shows positive camera-pose count | Passed — screenshot confirmed (`8`) |
+| Panel shows skipped pose lines as `0` for the clean sample file | Passed — screenshot confirmed |
+| Panel loader diagnostics report loaded file and valid pose count | Passed — screenshot confirmed |
+| Runtime point-cloud reload still succeeds on valid sample path | Passed — screenshot confirmed |
+| Invalid point-cloud reload still preserves the previous visible cloud | Passed — inherited from Milestone 8 and developer-confirmed workflow |
+| Camera movement and resize/aspect behavior still work | Passed — developer confirmed |
+| Milestone 3 shader probe still passes | Passed — screenshot confirmed |
+| Milestone 2 ownership probe still passes | Passed — screenshot confirmed |
+| `F2`, `F3`, `F11`, `Esc` still work | Passed — developer confirmed |
 
 ## Known limitations
 
@@ -84,6 +106,16 @@ Manual checklist:
 - No quaternion, full matrix, COLMAP, Bundler, OpenMVG or PLY camera import exists yet.
 - Frustum scale is still fixed in renderer code.
 
-## Completion gate
+## Completion assessment
 
-Milestone 10 is complete only after the local validation checklist passes and this document is updated from `Pending` to confirmed results.
+| Acceptance criterion | Result |
+|---|---|
+| Camera-pose text loader exists outside `gfx` | Passed — source implementation |
+| Sample camera-pose file loads successfully | Passed — screenshot confirmed |
+| Renderer visualizes file-backed camera frustums and trajectory | Passed — screenshot confirmed |
+| Point-cloud reload remains functional | Passed — screenshot confirmed |
+| Legacy assignment launch checks pass | Passed — developer confirmed |
+| Milestone 3 and Milestone 2 probes remain passing | Passed — screenshot confirmed |
+| Completion note records commands and limitations | Passed — this document |
+
+Milestone 10 is complete and may be merged into `feature/sfm-visualization-sandbox`.
