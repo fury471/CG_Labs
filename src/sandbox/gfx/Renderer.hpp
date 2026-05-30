@@ -49,6 +49,7 @@ public:
 	[[nodiscard]] RendererBuildResult initialise(sfm::scene::PointCloud const& point_cloud,
 	                                            sfm::scene::CameraPoseSet const& camera_poses);
 	[[nodiscard]] RendererBuildResult reload_point_cloud(sfm::scene::PointCloud const& point_cloud);
+	[[nodiscard]] RendererBuildResult reload_camera_poses(sfm::scene::CameraPoseSet const& camera_poses);
 
 	void render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept;
 

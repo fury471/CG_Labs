@@ -82,6 +82,39 @@ void draw_point_controls(sfm::gfx::PointCloudRenderSettings& settings)
 	ImGui::Checkbox("Show point-cloud bounds", &settings.show_bounds);
 }
 
+void draw_camera_pose_metadata(sfm::scene::CameraPoseSet const& camera_poses, int& selected_pose)
+{
+	if (camera_poses.empty()) {
+		ImGui::TextUnformatted("Pose metadata: unavailable");
+		return;
+	}
+
+	int const max_pose_index = static_cast<int>(camera_poses.size() - 1u);
+	selected_pose = std::clamp(selected_pose, 0, max_pose_index);
+	ImGui::SliderInt("Selected pose", &selected_pose, 0, max_pose_index);
+
+	auto const poses = camera_poses.poses();
+	sfm::scene::CameraPose const& pose = poses[static_cast<std::size_t>(selected_pose)];
+	sfm::scene::CameraPoseMetadata const& metadata = pose.metadata;
+	glm::vec3 const position{ pose.camera_to_world[3] };
+	glm::vec3 const right{ pose.camera_to_world[0] };
+	glm::vec3 const up{ pose.camera_to_world[1] };
+	glm::vec3 const forward = -glm::vec3{ pose.camera_to_world[2] };
+
+	ImGui::Text("Index: %zu", metadata.index);
+	ImGui::Text("Source id: %d", metadata.source_id);
+	ImGui::Text("Camera id: %d", metadata.camera_id);
+	ImGui::Text("Source line: %zu", metadata.source_line);
+	ImGui::Text("Image/name: %s", metadata.image_name.empty() ? "<none>" : metadata.image_name.c_str());
+	ImGui::Text("Format: %s", metadata.source_format.c_str());
+	ImGui::Text("Source file: %s", metadata.source_file.empty() ? "<none>" : metadata.source_file.c_str());
+	ImGui::TextWrapped("Source convention: %s", metadata.source_convention.c_str());
+	ImGui::Text("Position: %.3f, %.3f, %.3f", position.x, position.y, position.z);
+	ImGui::Text("Forward: %.3f, %.3f, %.3f", forward.x, forward.y, forward.z);
+	ImGui::Text("Up: %.3f, %.3f, %.3f", up.x, up.y, up.z);
+	ImGui::Text("Right: %.3f, %.3f, %.3f", right.x, right.y, right.z);
+}
+
 } // namespace
 
 int main()
@@ -118,14 +151,19 @@ int main()
 	bool using_loaded_point_cloud = point_cloud_load.succeeded;
 	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud ? std::move(point_cloud_load.cloud) : sfm::scene::PointCloud::make_debug_cluster();
 	std::string active_point_cloud_source = using_loaded_point_cloud ? default_point_cloud_path.string() : "procedural fallback";
-	std::string last_reload_status = using_loaded_point_cloud ? "Initial point cloud loaded" : "Initial load failed; using procedural fallback";
-	int reload_count = 0;
+	std::string last_point_cloud_reload_status = using_loaded_point_cloud ? "Initial point cloud loaded" : "Initial load failed; using procedural fallback";
+	int point_cloud_reload_count = 0;
 
 	std::filesystem::path const default_camera_pose_path = config::resources_path(kDefaultCameraPoseResource);
-	sfm::scene::CameraPoseLoadResult camera_pose_load = sfm::scene::load_camera_poses_from_text_file(default_camera_pose_path);
-	bool const using_loaded_camera_poses = camera_pose_load.succeeded;
-	sfm::scene::CameraPoseSet const camera_poses = using_loaded_camera_poses ? std::move(camera_pose_load.poses) : sfm::scene::CameraPoseSet::make_debug_orbit();
-	std::string const active_camera_pose_source = using_loaded_camera_poses ? default_camera_pose_path.string() : "procedural fallback";
+	std::array<char, 512> camera_pose_path_buffer{};
+	copy_path_to_buffer(camera_pose_path_buffer, default_camera_pose_path);
+	sfm::scene::CameraPoseLoadResult camera_pose_load = sfm::scene::load_camera_poses_from_file(default_camera_pose_path);
+	bool using_loaded_camera_poses = camera_pose_load.succeeded;
+	sfm::scene::CameraPoseSet camera_poses = using_loaded_camera_poses ? std::move(camera_pose_load.poses) : sfm::scene::CameraPoseSet::make_debug_orbit();
+	std::string active_camera_pose_source = using_loaded_camera_poses ? default_camera_pose_path.string() : "procedural fallback";
+	std::string last_camera_pose_reload_status = using_loaded_camera_poses ? "Initial camera poses loaded" : "Initial load failed; using procedural fallback";
+	int camera_pose_reload_count = 0;
+	int selected_camera_pose = 0;
 
 	sfm::gfx::PointCloudRenderSettings point_settings{};
 	sfm::gfx::Renderer renderer;
@@ -176,7 +214,7 @@ int main()
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 13: Point-cloud inspection controls and UX polish");
+			ImGui::TextUnformatted("Milestone 14: Camera-pose conventions, import formats and metadata");
 			draw_point_cloud_statistics(point_cloud.statistics());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Point display");
@@ -185,10 +223,45 @@ int main()
 			ImGui::TextUnformatted("Camera poses");
 			ImGui::Text("Camera pose source: %s", active_camera_pose_source.c_str());
 			ImGui::Text("Camera poses: %zu", camera_poses.size());
+			ImGui::Text("Pose format: %s", camera_pose_load.source_format.empty() ? "<unknown>" : camera_pose_load.source_format.c_str());
 			ImGui::Text("Skipped pose lines: %zu", camera_pose_load.skipped_lines);
+			ImGui::Text("Camera line vertices: %d", renderer.camera_line_vertex_count());
+			draw_camera_pose_metadata(camera_poses, selected_camera_pose);
 			for (std::string const& message : camera_pose_load.messages)
 				ImGui::BulletText("%s", message.c_str());
-			ImGui::Text("Camera line vertices: %d", renderer.camera_line_vertex_count());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Camera pose reload");
+			ImGui::InputText("Pose path", camera_pose_path_buffer.data(), camera_pose_path_buffer.size());
+			if (ImGui::Button("Load / Reload poses")) {
+				std::filesystem::path const requested_path{ std::string{ camera_pose_path_buffer.data() } };
+				sfm::scene::CameraPoseLoadResult candidate_load = sfm::scene::load_camera_poses_from_file(requested_path);
+				if (candidate_load.succeeded) {
+					sfm::scene::CameraPoseSet candidate_poses = std::move(candidate_load.poses);
+					sfm::gfx::RendererBuildResult candidate_renderer_build = renderer.reload_camera_poses(candidate_poses);
+					if (candidate_renderer_build.succeeded) {
+						camera_poses = std::move(candidate_poses);
+						camera_pose_load = std::move(candidate_load);
+						renderer_build = std::move(candidate_renderer_build);
+						using_loaded_camera_poses = true;
+						active_camera_pose_source = requested_path.string();
+						last_camera_pose_reload_status = "Pose reload succeeded";
+						selected_camera_pose = 0;
+						++camera_pose_reload_count;
+					} else {
+						renderer_build = std::move(candidate_renderer_build);
+						last_camera_pose_reload_status = "Pose reload failed during GPU upload; previous poses kept";
+					}
+				} else {
+					camera_pose_load = std::move(candidate_load);
+					last_camera_pose_reload_status = "Pose reload failed during file load; previous poses kept";
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to pose sample"))
+				copy_path_to_buffer(camera_pose_path_buffer, default_camera_pose_path);
+			ImGui::Text("Active pose source: %s", using_loaded_camera_poses ? active_camera_pose_source.c_str() : "procedural fallback");
+			ImGui::Text("Last pose reload: %s", last_camera_pose_reload_status.c_str());
+			ImGui::Text("Successful pose reloads: %d", camera_pose_reload_count);
 			ImGui::Separator();
 			ImGui::TextUnformatted("Point cloud reload");
 			ImGui::InputText("Path", point_cloud_path_buffer.data(), point_cloud_path_buffer.size());
@@ -204,15 +277,15 @@ int main()
 						renderer_build = std::move(candidate_renderer_build);
 						using_loaded_point_cloud = true;
 						active_point_cloud_source = requested_path.string();
-						last_reload_status = "Reload succeeded";
-						++reload_count;
+						last_point_cloud_reload_status = "Reload succeeded";
+						++point_cloud_reload_count;
 					} else {
 						renderer_build = std::move(candidate_renderer_build);
-						last_reload_status = "Reload failed during GPU upload; previous cloud kept";
+						last_point_cloud_reload_status = "Reload failed during GPU upload; previous cloud kept";
 					}
 				} else {
 					point_cloud_load = std::move(candidate_load);
-					last_reload_status = "Reload failed during file load; previous cloud kept";
+					last_point_cloud_reload_status = "Reload failed during file load; previous cloud kept";
 				}
 			}
 			ImGui::SameLine();
@@ -222,8 +295,8 @@ int main()
 			if (ImGui::Button("Reset to text sample"))
 				copy_path_to_buffer(point_cloud_path_buffer, legacy_text_point_cloud_path);
 			ImGui::Text("Active source: %s", using_loaded_point_cloud ? active_point_cloud_source.c_str() : "procedural fallback");
-			ImGui::Text("Last reload: %s", last_reload_status.c_str());
-			ImGui::Text("Successful reloads: %d", reload_count);
+			ImGui::Text("Last reload: %s", last_point_cloud_reload_status.c_str());
+			ImGui::Text("Successful reloads: %d", point_cloud_reload_count);
 			ImGui::Text("CPU point samples: %zu", point_cloud.size());
 			ImGui::Text("Skipped input lines: %zu", point_cloud_load.skipped_lines);
 			for (std::string const& message : point_cloud_load.messages)

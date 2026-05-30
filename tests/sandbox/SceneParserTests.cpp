@@ -1,6 +1,8 @@
 #include "sandbox/scene/CameraPoseLoader.hpp"
 #include "sandbox/scene/PointCloudLoader.hpp"
 
+#include <glm/glm.hpp>
+
 #include <cmath>
 #include <cstdint>
 #include <exception>
@@ -48,6 +50,13 @@ void require_near(float actual, float expected, float epsilon, std::string const
 		stream << label << ": expected " << expected << ", got " << actual;
 		throw TestFailure{ stream.str() };
 	}
+}
+
+void require_vec3_near(glm::vec3 actual, glm::vec3 expected, float epsilon, std::string const& label)
+{
+	require_near(actual.x, expected.x, epsilon, label + " x");
+	require_near(actual.y, expected.y, epsilon, label + " y");
+	require_near(actual.z, expected.z, epsilon, label + " z");
 }
 
 class TemporaryDirectory final
@@ -248,6 +257,12 @@ bad row
 	require(result.succeeded, "camera pose loader should succeed when at least one row is valid");
 	require_equal(result.poses.size(), 2u, "valid camera pose count");
 	require_equal(result.skipped_lines, 2u, "skipped camera pose lines");
+	require(result.source_format == "milestone eye-target text", "text camera pose source format should be reported");
+
+	auto const pose = result.poses.poses()[0];
+	require_equal(pose.metadata.index, 0u, "text pose metadata index");
+	require(pose.metadata.source_file == path.string(), "text pose metadata should preserve source file");
+	require_vec3_near(glm::vec3{ pose.camera_to_world[3] }, glm::vec3{ 0.0f, 1.0f, 4.0f }, 0.0001f, "text pose camera position");
 }
 
 void test_camera_pose_loader_rejects_degenerate_inputs()
@@ -265,6 +280,56 @@ nan 0 0 0 0 1 1 1 1
 	sfm::scene::CameraPoseLoadResult const result = sfm::scene::load_camera_poses_from_text_file(path);
 	require(!result.succeeded, "camera pose loader should fail when no valid poses exist");
 	require_equal(result.skipped_lines, 4u, "all malformed pose rows skipped");
+}
+
+void test_camera_pose_dispatcher_rejects_unsupported_extensions()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const unsupported = write_text_file(directory, "poses.json", "{}\n");
+	sfm::scene::CameraPoseLoadResult const result = sfm::scene::load_camera_poses_from_file(unsupported);
+	require(!result.succeeded, "camera pose dispatcher should reject unsupported extensions for M14");
+}
+
+void test_colmap_images_loader_converts_identity_pose_to_internal_graphics_convention()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const path = write_text_file(directory,
+	                                                   "images.txt",
+	                                                   R"data(# IMAGE_ID QW QX QY QZ TX TY TZ CAMERA_ID NAME
+1 1 0 0 0 0 0 0 7 image_0001.jpg
+0 0 -1 10 10 2
+)data");
+
+	sfm::scene::CameraPoseLoadResult const result = sfm::scene::load_camera_poses_from_colmap_images_file(path);
+	require(result.succeeded, "COLMAP images.txt loader should accept an identity image pose");
+	require_equal(result.poses.size(), 1u, "COLMAP valid pose count");
+	require(result.source_format == "COLMAP text images.txt", "COLMAP source format should be reported");
+
+	auto const pose = result.poses.poses()[0];
+	require_vec3_near(glm::vec3{ pose.camera_to_world[3] }, glm::vec3{ 0.0f, 0.0f, 0.0f }, 0.0001f, "COLMAP identity camera center");
+	require_vec3_near(glm::vec3{ pose.camera_to_world[0] }, glm::vec3{ 1.0f, 0.0f, 0.0f }, 0.0001f, "COLMAP identity right axis");
+	require_vec3_near(glm::vec3{ pose.camera_to_world[1] }, glm::vec3{ 0.0f, -1.0f, 0.0f }, 0.0001f, "COLMAP identity internal up basis in world");
+	require_vec3_near(-glm::vec3{ pose.camera_to_world[2] }, glm::vec3{ 0.0f, 0.0f, 1.0f }, 0.0001f, "COLMAP identity internal forward direction");
+	require_equal(static_cast<std::size_t>(pose.metadata.camera_id), 7u, "COLMAP camera id metadata");
+	require(pose.metadata.image_name == "image_0001.jpg", "COLMAP image name metadata should be preserved");
+}
+
+void test_colmap_images_loader_computes_camera_center_from_world_to_camera_translation()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const path = write_text_file(directory,
+	                                                   "images.txt",
+	                                                   R"data(# identity rotation with non-zero world-to-camera translation
+2 1 0 0 0 -1 -2 -3 4 image_0002.jpg
+
+)data");
+
+	sfm::scene::CameraPoseLoadResult const result = sfm::scene::load_camera_poses_from_file(path);
+	require(result.succeeded, "dispatcher should route images.txt to the COLMAP importer");
+	require_equal(result.poses.size(), 1u, "COLMAP translated valid pose count");
+
+	auto const pose = result.poses.poses()[0];
+	require_vec3_near(glm::vec3{ pose.camera_to_world[3] }, glm::vec3{ 1.0f, 2.0f, 3.0f }, 0.0001f, "COLMAP camera center from -R^T t");
 }
 
 using TestFunction = void (*)();
@@ -287,6 +352,9 @@ int main()
 		{ "point cloud dispatcher preserves text loader", test_point_cloud_dispatcher_preserves_text_loader },
 		{ "camera pose loader accepts supported rows", test_camera_pose_loader_accepts_supported_rows },
 		{ "camera pose loader rejects degenerate inputs", test_camera_pose_loader_rejects_degenerate_inputs },
+		{ "camera pose dispatcher rejects unsupported extensions", test_camera_pose_dispatcher_rejects_unsupported_extensions },
+		{ "COLMAP images loader converts identity pose to internal graphics convention", test_colmap_images_loader_converts_identity_pose_to_internal_graphics_convention },
+		{ "COLMAP images loader computes camera center from world-to-camera translation", test_colmap_images_loader_computes_camera_center_from_world_to_camera_translation },
 	};
 
 	int failed = 0;
