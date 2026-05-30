@@ -2,9 +2,11 @@ add_library (sfm_sandbox_scene STATIC)
 target_sources (
 	sfm_sandbox_scene
 	PUBLIC
+		"CameraPose.hpp"
 		"PointCloud.hpp"
 		"PointCloudLoader.hpp"
 	PRIVATE
+		"CameraPose.cpp"
 		"PointCloud.cpp"
 		"PointCloudLoader.cpp"
 )
