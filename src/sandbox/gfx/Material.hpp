@@ -5,15 +5,16 @@
 namespace sfm::gfx
 {
 
-/// Minimal renderer-facing material categories used by the M15 submission path.
+/// Minimal renderer-facing material categories used by the M15/M16 submission path.
 ///
-/// This is deliberately small: it names the shader/material intent without
+/// This remains deliberately small: it names the shader/material intent without
 /// introducing texture binding, PBR parameters or a general asset system before
 /// later milestones require them.
 enum class MaterialKind
 {
 	LineColour,
 	PointCloud,
+	MeshSurface,
 };
 
 struct MaterialDescriptor final

@@ -5,10 +5,12 @@
 #include "sandbox/gfx/OwnershipProbe.hpp"
 #include "sandbox/gfx/Renderer.hpp"
 #include "sandbox/gfx/ShaderProgramProbe.hpp"
+#include "sandbox/gfx/SurfaceRenderer.hpp"
 #include "sandbox/scene/CameraPose.hpp"
 #include "sandbox/scene/CameraPoseLoader.hpp"
 #include "sandbox/scene/PointCloud.hpp"
 #include "sandbox/scene/PointCloudLoader.hpp"
+#include "sandbox/scene/SurfaceImport.hpp"
 
 #include <imgui.h>
 
@@ -29,6 +31,7 @@ namespace
 constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud_ascii.ply";
 constexpr char const* kLegacyTextPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
 constexpr char const* kDefaultCameraPoseResource = "sandbox/sample_camera_poses.txt";
+constexpr char const* kDefaultSurfaceResource = "sandbox/sample_surface.obj";
 
 void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path const& path)
 {
@@ -49,6 +52,20 @@ void draw_point_cloud_statistics(sfm::scene::PointCloudStatistics const& statist
 	ImGui::Text("Bounds min: %.3f, %.3f, %.3f", statistics.bounds_min.x, statistics.bounds_min.y, statistics.bounds_min.z);
 	ImGui::Text("Bounds max: %.3f, %.3f, %.3f", statistics.bounds_max.x, statistics.bounds_max.y, statistics.bounds_max.z);
 	ImGui::Text("Bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
+}
+
+void draw_surface_statistics(sfm::scene::SurfaceStatistics const& statistics)
+{
+	ImGui::Text("Surface vertices: %zu", statistics.vertex_count);
+	ImGui::Text("Surface triangles: %zu", statistics.triangle_count);
+	ImGui::Text("Approx. surface CPU storage: %zu bytes", statistics.approximate_cpu_bytes);
+	if (!statistics.has_bounds) {
+		ImGui::TextUnformatted("Surface bounds: unavailable");
+		return;
+	}
+	ImGui::Text("Surface bounds min: %.3f, %.3f, %.3f", statistics.bounds_min.x, statistics.bounds_min.y, statistics.bounds_min.z);
+	ImGui::Text("Surface bounds max: %.3f, %.3f, %.3f", statistics.bounds_max.x, statistics.bounds_max.y, statistics.bounds_max.z);
+	ImGui::Text("Surface bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
 }
 
 char const* colour_mode_label(sfm::gfx::PointColourMode mode)
@@ -115,14 +132,17 @@ void draw_camera_pose_metadata(sfm::scene::CameraPoseSet const& camera_poses, in
 	ImGui::Text("Right: %.3f, %.3f, %.3f", right.x, right.y, right.z);
 }
 
-void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& statistics)
+void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& statistics,
+                                    sfm::gfx::SurfaceRendererStats const& surface_statistics)
 {
 	ImGui::Text("Submitted items: %d", statistics.submitted_items);
-	ImGui::Text("Draw calls: %d", statistics.draw_calls);
+	ImGui::Text("Draw calls: %d + surface %d", statistics.draw_calls, surface_statistics.draw_calls);
 	ImGui::Text("Program binds: %d", statistics.program_binds);
 	ImGui::Text("Vertex-array binds: %d", statistics.vertex_array_binds);
 	ImGui::Text("Line vertices drawn: %d", statistics.line_vertices_drawn);
 	ImGui::Text("Point vertices drawn: %d", statistics.point_vertices_drawn);
+	ImGui::Text("Surface vertices drawn: %d", surface_statistics.vertices_drawn);
+	ImGui::Text("Surface triangles drawn: %d", surface_statistics.triangles_drawn);
 }
 
 } // namespace
@@ -175,9 +195,24 @@ int main()
 	int camera_pose_reload_count = 0;
 	int selected_camera_pose = 0;
 
+	std::filesystem::path const default_surface_path = config::resources_path(kDefaultSurfaceResource);
+	std::array<char, 512> surface_path_buffer{};
+	copy_path_to_buffer(surface_path_buffer, default_surface_path);
+	sfm::scene::SurfaceImportResult surface_load = sfm::scene::import_surface(default_surface_path);
+	bool using_loaded_surface = surface_load.succeeded;
+	sfm::scene::SurfaceMesh surface_mesh = using_loaded_surface ? std::move(surface_load.mesh) : sfm::scene::SurfaceMesh{};
+	sfm::scene::SurfaceStatistics surface_statistics = sfm::scene::statistics_for(surface_mesh);
+	std::string active_surface_source = using_loaded_surface ? default_surface_path.string() : "no surface loaded";
+	std::string last_surface_reload_status = using_loaded_surface ? "Initial surface loaded" : "Initial surface load failed";
+	int surface_reload_count = 0;
+	bool show_surface = true;
+	glm::vec3 surface_colour{ 0.86f, 0.78f, 0.58f };
+
 	sfm::gfx::PointCloudRenderSettings point_settings{};
 	sfm::gfx::Renderer renderer;
 	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
+	sfm::gfx::SurfaceRenderer surface_renderer;
+	sfm::gfx::SurfaceRendererResult surface_renderer_result = surface_renderer.reload(surface_mesh, surface_colour);
 
 	bool show_gui = true;
 	bool show_logs = false;
@@ -210,6 +245,7 @@ int main()
 		window_manager.NewImGuiFrame();
 		clear_pass.render(framebuffer_width, framebuffer_height);
 		renderer.render(camera.GetWorldToClipMatrix(), point_settings);
+		surface_renderer.render(camera.GetWorldToClipMatrix(), show_surface);
 
 		if (ImGui::Begin("Sandbox status")) {
 			ImGui::TextUnformatted("SfM Visualization Sandbox");
@@ -221,8 +257,60 @@ int main()
 			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
 			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
 			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 15: Renderer architecture consolidation");
+			ImGui::TextUnformatted("Milestone 16: Reconstructed mesh loading and surface inspection");
 			draw_point_cloud_statistics(point_cloud.statistics());
+			ImGui::Separator();
+			ImGui::TextUnformatted("Surface mesh");
+			ImGui::Checkbox("Show surface mesh", &show_surface);
+			if (ImGui::ColorEdit3("Surface colour", &surface_colour.x)) {
+				sfm::gfx::SurfaceRendererResult colour_update = surface_renderer.reload(surface_mesh, surface_colour);
+				if (colour_update.succeeded)
+					surface_renderer_result = std::move(colour_update);
+				else
+					last_surface_reload_status = "Surface colour update failed; previous surface kept";
+			}
+			if (ImGui::Button("Rebuild surface colour"))
+				surface_renderer_result = surface_renderer.reload(surface_mesh, surface_colour);
+			draw_surface_statistics(surface_statistics);
+			ImGui::Text("Surface source: %s", active_surface_source.c_str());
+			ImGui::Text("Surface renderer: %s", surface_renderer.ready() ? "ready" : "not ready");
+			ImGui::Text("Surface GPU triangles: %d", surface_renderer.triangle_count());
+			ImGui::InputText("Surface path", surface_path_buffer.data(), surface_path_buffer.size());
+			if (ImGui::Button("Load / Reload surface")) {
+				std::filesystem::path const requested_path{ std::string{ surface_path_buffer.data() } };
+				sfm::scene::SurfaceImportResult candidate_load = sfm::scene::import_surface(requested_path);
+				if (candidate_load.succeeded) {
+					sfm::scene::SurfaceMesh candidate_mesh = std::move(candidate_load.mesh);
+					sfm::gfx::SurfaceRendererResult candidate_render = surface_renderer.reload(candidate_mesh, surface_colour);
+					if (candidate_render.succeeded) {
+						surface_mesh = std::move(candidate_mesh);
+						surface_statistics = sfm::scene::statistics_for(surface_mesh);
+						surface_load = std::move(candidate_load);
+						surface_renderer_result = std::move(candidate_render);
+						using_loaded_surface = true;
+						active_surface_source = requested_path.string();
+						last_surface_reload_status = "Surface reload succeeded";
+						++surface_reload_count;
+					} else {
+						surface_renderer_result = std::move(candidate_render);
+						last_surface_reload_status = "Surface reload failed during GPU upload; previous surface kept";
+					}
+				} else {
+					surface_load = std::move(candidate_load);
+					last_surface_reload_status = "Surface reload failed during file load; previous surface kept";
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("Reset to surface sample"))
+				copy_path_to_buffer(surface_path_buffer, default_surface_path);
+			ImGui::Text("Active surface source: %s", using_loaded_surface ? active_surface_source.c_str() : "no surface loaded");
+			ImGui::Text("Last surface reload: %s", last_surface_reload_status.c_str());
+			ImGui::Text("Successful surface reloads: %d", surface_reload_count);
+			ImGui::Text("Skipped surface lines: %zu", surface_load.skipped_lines);
+			for (std::string const& message : surface_load.messages)
+				ImGui::BulletText("%s", message.c_str());
+			for (std::string const& message : surface_renderer_result.messages)
+				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
 			ImGui::TextUnformatted("Point display");
 			draw_point_controls(point_settings);
@@ -311,10 +399,11 @@ int main()
 			ImGui::Separator();
 			ImGui::TextUnformatted("Renderer status");
 			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
+			ImGui::Text("Surface renderer: %s", surface_renderer.ready() ? "ready" : "not ready");
 			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
 			ImGui::Text("Bounds line vertices: %d", renderer.bounds_line_vertex_count());
 			ImGui::Text("GPU point vertices: %d", renderer.point_count());
-			draw_renderer_frame_statistics(renderer.frame_statistics());
+			draw_renderer_frame_statistics(renderer.frame_statistics(), surface_renderer.frame_statistics());
 			for (std::string const& message : renderer_build.messages)
 				ImGui::BulletText("%s", message.c_str());
 			ImGui::Separator();
