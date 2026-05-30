@@ -136,6 +136,102 @@ abc
 	require(!missing_result.succeeded, "point cloud loader should fail for missing files");
 }
 
+void test_ascii_ply_loader_accepts_coloured_vertices_and_statistics()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const path = write_text_file(directory,
+	                                                   "points.ply",
+	                                                   R"data(ply
+format ascii 1.0
+comment test sample
+element vertex 3
+property float x
+property float y
+property float z
+property uchar red
+property uchar green
+property uchar blue
+end_header
+-1 0 2 255 0 0
+3 4 -2 0 128 255
+0 2 1 0.25 0.50 0.75
+)data");
+
+	sfm::scene::PointCloudLoadResult const result = sfm::scene::load_point_cloud_from_file(path);
+	require(result.succeeded, "ASCII PLY loader should accept the supported coloured subset");
+	require_equal(result.cloud.size(), 3u, "PLY valid point count");
+	require_equal(result.skipped_lines, 0u, "PLY skipped line count");
+
+	auto const points = result.cloud.points();
+	require_near(points[0].colour.r, 1.0f, 0.0001f, "PLY byte colour r");
+	require_near(points[1].colour.g, 128.0f / 255.0f, 0.0001f, "PLY byte colour g");
+	require_near(points[2].colour.b, 0.75f, 0.0001f, "PLY normalized colour b");
+
+	sfm::scene::PointCloudStatistics const statistics = result.cloud.statistics();
+	require(statistics.has_bounds, "PLY statistics should report bounds");
+	require_equal(statistics.point_count, 3u, "PLY statistics point count");
+	require_near(statistics.bounds_min.x, -1.0f, 0.0001f, "PLY bounds min x");
+	require_near(statistics.bounds_min.z, -2.0f, 0.0001f, "PLY bounds min z");
+	require_near(statistics.bounds_max.x, 3.0f, 0.0001f, "PLY bounds max x");
+	require_near(statistics.bounds_max.y, 4.0f, 0.0001f, "PLY bounds max y");
+	require_near(statistics.bounds_extent.x, 4.0f, 0.0001f, "PLY bounds extent x");
+	require(statistics.approximate_cpu_bytes >= 3u * sizeof(sfm::scene::PointSample), "PLY statistics should report CPU storage");
+}
+
+void test_ascii_ply_loader_rejects_unsupported_format_and_elements()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const binary_path = write_text_file(directory,
+	                                                          "binary.ply",
+	                                                          R"data(ply
+format binary_little_endian 1.0
+element vertex 1
+property float x
+property float y
+property float z
+end_header
+)data");
+	std::filesystem::path const face_path = write_text_file(directory,
+	                                                        "faces.ply",
+	                                                        R"data(ply
+format ascii 1.0
+element vertex 1
+property float x
+property float y
+property float z
+element face 1
+property list uchar int vertex_indices
+end_header
+0 0 0
+3 0 1 2
+)data");
+	std::filesystem::path const missing_position_path = write_text_file(directory,
+	                                                                    "missing_position.ply",
+	                                                                    R"data(ply
+format ascii 1.0
+element vertex 1
+property float x
+property float y
+property uchar red
+end_header
+0 0 255
+)data");
+
+	require(!sfm::scene::load_point_cloud_from_ascii_ply_file(binary_path).succeeded, "binary PLY should be rejected");
+	require(!sfm::scene::load_point_cloud_from_ascii_ply_file(face_path).succeeded, "PLY with non-zero face element should be rejected");
+	require(!sfm::scene::load_point_cloud_from_ascii_ply_file(missing_position_path).succeeded, "PLY missing z should be rejected");
+}
+
+void test_point_cloud_dispatcher_preserves_text_loader()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const path = write_text_file(directory, "points.txt", "0 0 0\n1 2 3 255 255 255\n");
+	std::filesystem::path const unsupported = write_text_file(directory, "points.unsupported", "0 0 0\n");
+
+	require(sfm::scene::load_point_cloud_from_file(path).succeeded, "dispatcher should preserve text point-cloud loading");
+	require(!sfm::scene::load_point_cloud_from_file(unsupported).succeeded, "dispatcher should reject unsupported extensions");
+}
+
 void test_camera_pose_loader_accepts_supported_rows()
 {
 	TemporaryDirectory directory;
@@ -186,6 +282,9 @@ int main()
 	std::vector<TestCase> const tests{
 		{ "point cloud loader accepts supported rows", test_point_cloud_loader_accepts_supported_rows },
 		{ "point cloud loader fails on empty or missing file", test_point_cloud_loader_fails_on_empty_or_missing_file },
+		{ "ASCII PLY loader accepts coloured vertices and statistics", test_ascii_ply_loader_accepts_coloured_vertices_and_statistics },
+		{ "ASCII PLY loader rejects unsupported format and elements", test_ascii_ply_loader_rejects_unsupported_format_and_elements },
+		{ "point cloud dispatcher preserves text loader", test_point_cloud_dispatcher_preserves_text_loader },
 		{ "camera pose loader accepts supported rows", test_camera_pose_loader_accepts_supported_rows },
 		{ "camera pose loader rejects degenerate inputs", test_camera_pose_loader_rejects_degenerate_inputs },
 	};
