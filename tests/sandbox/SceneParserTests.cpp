@@ -2,6 +2,7 @@
 #include "sandbox/scene/PointCloudLoader.hpp"
 
 #include <cmath>
+#include <cstdint>
 #include <exception>
 #include <filesystem>
 #include <fstream>
