@@ -13,6 +13,7 @@ It does not certify the full inherited course repository for commercial redistri
 | `res/sandbox/sample_camera_poses.txt` | Text camera poses | Synthetic sandbox sample | May be redistributed with this repository |
 | `res/sandbox/sample_surface.obj` | Tiny OBJ surface | Synthetic sandbox sample | May be redistributed with this repository |
 | `res/sandbox/sample_camera_image.ppm` | ASCII PPM image | Synthetic sandbox sample | May be redistributed with this repository |
+| `res/sandbox/default_project.sfmproj` | Sandbox project manifest | Project startup configuration | May be redistributed with this repository |
 
 ## Project-owned sandbox code and shaders
 
@@ -26,17 +27,20 @@ It does not certify the full inherited course repository for commercial redistri
 
 ## Dependency review status
 
-The root `CMakeLists.txt` pins or references the current dependency set. These dependencies must be reviewed before any commercial or public binary release claim:
+The root `CMakeLists.txt` pins or references the current dependency set. M26
+records the local license evidence below, but this is still not a complete
+commercial-release legal review because inherited course/framework obligations
+and binary packaging notices still need final verification.
 
-| Dependency | Use | Review status |
-|---|---|---|
-| Assimp | Model/resource loading support inherited from lab framework | Needs license review before distribution claim |
-| GLFW | Window/context handling | Needs license review before distribution claim |
-| GLM | Math library | Needs license review before distribution claim |
-| ImGui | Development UI | Needs license review before distribution claim |
-| GLAD | OpenGL loader | Needs license review before distribution claim |
-| tinyfiledialogs | File dialog helper | Needs license review before distribution claim |
-| stb | Utility/image-related dependency inherited from lab framework | Needs license review before distribution claim |
+| Dependency | Use | Local license evidence | Release status |
+|---|---|---|---|
+| Assimp | Model/resource loading support inherited from lab framework | `dependencies/assimp-src/LICENSE`, BSD-style redistribution terms | Notice/attribution obligations must be included in any binary package |
+| GLFW | Window/context handling | `dependencies/glfw-src/LICENSE.md`, zlib/libpng-style license text | Notice/attribution obligations must be included in any binary package |
+| GLM | Math library | `dependencies/glm-src/copying.txt`, Happy Bunny or MIT license | Notice/attribution obligations must be included in any binary package |
+| ImGui | Development UI | `dependencies/imgui-src/LICENSE.txt`, MIT license | Notice/attribution obligations must be included in any binary package |
+| GLAD | OpenGL loader | `dependencies/glad-src/LICENSE`, MIT license for generated loader/source | Notice/attribution obligations must be included in any binary package |
+| tinyfiledialogs | File dialog helper | `dependencies/tinyfiledialogs-src/README.txt`, zlib licence statement | Notice/attribution obligations must be included in any binary package |
+| stb | Utility/image-related dependency inherited from lab framework | `dependencies/stb-src/LICENSE`, MIT or public-domain choice | Notice/attribution obligations must be included in any binary package if MIT is chosen |
 
 ## Inherited course assets and framework code
 
@@ -57,3 +61,17 @@ binary distribution obligations
 ## M20 policy
 
 The sandbox may be described as a focused development tool. It must not be described as commercially ready until the dependency and inherited-resource review is complete.
+
+## M26 development-release statement
+
+The sandbox-owned samples, shaders, source and documentation are inventoried for
+development use. Dependency license evidence is now recorded from local source
+trees. A distributable release still needs:
+
+```text
+final third-party notices file
+inherited course/framework redistribution decision
+resource archive contents review
+binary runtime dependency audit
+release archive contents review
+```

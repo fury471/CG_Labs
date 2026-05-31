@@ -35,6 +35,23 @@ Sampler& Sampler::operator=(Sampler&& other) noexcept
 	return *this;
 }
 
+bool Sampler::set_parameter(GLenum parameter, GLint value) const noexcept
+{
+	if (m_id == 0u)
+		return false;
+
+	glSamplerParameteri(m_id, parameter, value);
+	return true;
+}
+
+bool Sampler::configure_linear_clamp() const noexcept
+{
+	return set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR) &&
+	       set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR) &&
+	       set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE) &&
+	       set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
 void Sampler::reset() noexcept
 {
 	if (m_id == 0u)

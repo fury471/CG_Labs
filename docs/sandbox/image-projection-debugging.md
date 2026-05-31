@@ -74,11 +74,19 @@ The image plane centre lies on the selected camera frustum's forward ray.
 
 This is the M17 projection sanity check. If the selected camera changes, or if the distance/height controls change, the image plane is rebuilt from the selected pose.
 
+## Textured image-plane path
+
+Milestone 23 replaces the original corner-colour debug card with a textured
+OpenGL image-plane path.
+
+The renderer now uploads the loaded PPM pixels into a `Texture2D`, samples them
+with a linear clamp sampler, and draws a UV-mapped quad in the selected camera's
+local plane.
+
 ## Current limitations
 
-- The image card is a coloured debug plane, not a textured OpenGL sampler path.
-- The displayed colours come from the loaded image's corner samples and are interpolated across two triangles.
 - Only ASCII PPM P3 is supported.
 - No camera intrinsics are imported yet.
 - No point reprojection error overlay is computed yet.
-- The implementation validates pose/image association visually before introducing a richer texture and calibration pipeline.
+- The image plane validates pose/image association visually before introducing
+  a richer calibrated projection pipeline.

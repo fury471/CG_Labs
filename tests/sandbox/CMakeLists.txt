@@ -54,3 +54,10 @@ set_tests_properties (
 	PROPERTIES
 		LABELS "sandbox;scene;image;parsers"
 )
+
+add_test (NAME sfm_sandbox_startup_validation COMMAND SfmSandbox --validate-install)
+set_tests_properties (
+	sfm_sandbox_startup_validation
+	PROPERTIES
+		LABELS "sandbox;startup;packaging"
+)

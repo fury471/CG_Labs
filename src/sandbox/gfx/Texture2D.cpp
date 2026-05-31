@@ -35,6 +35,29 @@ Texture2D& Texture2D::operator=(Texture2D&& other) noexcept
 	return *this;
 }
 
+bool Texture2D::allocate_storage(GLsizei width, GLsizei height, GLenum internal_format, GLsizei levels) const noexcept
+{
+	if (m_id == 0u || width <= 0 || height <= 0 || levels <= 0)
+		return false;
+
+	glTextureStorage2D(m_id, levels, internal_format, width, height);
+	return true;
+}
+
+bool Texture2D::upload_level(GLint level,
+                             GLsizei width,
+                             GLsizei height,
+                             GLenum format,
+                             GLenum type,
+                             std::span<std::byte const> data) const noexcept
+{
+	if (m_id == 0u || level < 0 || width <= 0 || height <= 0 || data.empty())
+		return false;
+
+	glTextureSubImage2D(m_id, level, 0, 0, width, height, format, type, data.data());
+	return true;
+}
+
 void Texture2D::reset() noexcept
 {
 	if (m_id == 0u)

@@ -34,8 +34,10 @@ The sandbox currently supports:
 * simple surface inspection through a documented tiny OBJ subset;
 * camera-image association through a small ASCII PPM debug path;
 * projection-debug image planes;
-* render-target and CPU profiling diagnostics;
-* an instanced repeated-marker stress scene.
+* render-target, CPU profiling and GPU pass-timing diagnostics;
+* an instanced repeated-marker stress scene;
+* a small project manifest for startup dataset paths;
+* startup validation and one-frame visual baseline capture commands.
 
 Main sandbox paths:
 
@@ -66,6 +68,25 @@ Launch checks:
    build\src\EDAF80\EDAF80_Assignment1.exe
    build\src\EDAN35\EDAN35_Assignment2.exe
 
+The sandbox starts from ``res/sandbox/default_project.sfmproj`` by default.
+Use a different startup manifest with:
+
+.. code-block:: bat
+
+   build\src\apps\SfmSandbox\SfmSandbox.exe --project path\to\project.sfmproj
+
+Validate startup resources and shaders without opening a window:
+
+.. code-block:: bat
+
+   build\src\apps\SfmSandbox\SfmSandbox.exe --validate-install
+
+Capture a default visual regression baseline:
+
+.. code-block:: bat
+
+   build\src\apps\SfmSandbox\SfmSandbox.exe --capture-baseline build\sandbox-captures\sfm-baseline.ppm
+
 Sandbox pull requests use ``.github/workflows/sandbox-ci.yml`` for the Windows
 Ninja configure/build/test gate. AI-assisted intermediate commits use
 ``[skip ci]``; final pull requests should not skip CI.
@@ -74,6 +95,10 @@ Important sandbox documents:
 
 * ``docs/sandbox/ROADMAP.md``;
 * ``docs/sandbox/ENGINEERING_STANDARDS.md``;
+* ``docs/sandbox/project-manifest.md``;
+* ``docs/sandbox/visual-regression-capture.md``;
+* ``docs/sandbox/gpu-timing-telemetry.md``;
+* ``docs/sandbox/release-candidate-packaging.md``;
 * ``docs/sandbox/release-readiness-m20.md``;
 * ``docs/sandbox/resource-license-inventory.md``;
 * ``docs/sandbox/rendering-regression-checklist.md``.

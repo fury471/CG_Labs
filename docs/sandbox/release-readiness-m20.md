@@ -17,6 +17,7 @@ rmdir /s /q build
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
+build\src\apps\SfmSandbox\SfmSandbox.exe --validate-install
 ```
 
 Launch checks:
@@ -71,12 +72,13 @@ M18/M19 performance counters visible
 reload paths keep previous valid data on failure
 ```
 
-Screenshot-baseline strategy for now:
+Visual baseline strategy:
 
 ```text
-Capture one screenshot of the default SfmSandbox startup scene after every major rendering change.
-Record branch/commit, framebuffer size and enabled debug layers/controls.
+Use --capture-baseline to render one default startup frame, write a PPM capture
+and write metadata beside it.
 Compare visually for missing major scene components before merging.
+Use manual screenshots only when platform/window capture is unavailable.
 ```
 
 A later milestone can automate screenshot comparison after the rendering path stabilizes.
@@ -86,6 +88,7 @@ A later milestone can automate screenshot comparison after the rendering path st
 Project-owned synthetic sandbox samples:
 
 ```text
+res/sandbox/default_project.sfmproj
 res/sandbox/sample_point_cloud_ascii.ply
 res/sandbox/sample_point_cloud.xyzrgb
 res/sandbox/sample_camera_poses.txt
@@ -124,7 +127,21 @@ shaders
 res
 ```
 
-This is enough for a development install layout, but not a polished end-user package.
+This is enough for a development install layout, but not a polished end-user
+package. Validate a build-tree or installed layout with:
+
+```bat
+build\src\apps\SfmSandbox\SfmSandbox.exe --validate-install
+```
+
+Development install smoke check:
+
+```bat
+cmake --install build --prefix build\install-sfm-sandbox
+pushd build\install-sfm-sandbox\bin
+SfmSandbox.exe --validate-install
+popd
+```
 
 Known packaging limitations:
 
@@ -132,7 +149,7 @@ Known packaging limitations:
 no installer
 no versioned release archive
 no runtime dependency audit artifact
-no end-user configuration file
+limited startup configuration only through the sandbox project manifest
 no crash/error reporting UX
 ```
 
@@ -152,14 +169,19 @@ before/after values
 commit or PR reference
 ```
 
+The status panel now separates CPU frame scopes from GPU pass telemetry. GPU
+timer-query support is reported honestly; if unavailable, do not substitute CPU
+timings for GPU timings.
+
 ## Known release limitations
 
 - The sandbox is a focused development tool, not a commercial product.
-- Image support is currently PPM-based and debug-oriented.
+- Image support is currently PPM-based with a textured plane, but not calibrated reprojection.
 - Surface support is a tiny OBJ subset, not a general mesh importer.
 - Marker stress scenes are synthetic.
-- GPU timer queries are not implemented yet.
-- Screenshot regression is manual.
+- GPU timer queries are available only where the runtime OpenGL context supports
+  `GL_TIME_ELAPSED`.
+- Visual capture is automated, but pixel-threshold comparison is not.
 - Licensing of inherited course assets and all dependencies must be reviewed before distribution claims.
 
 ## M20 completion gate

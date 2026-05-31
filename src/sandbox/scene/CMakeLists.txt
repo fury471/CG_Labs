@@ -4,13 +4,22 @@ target_sources (
 	PUBLIC
 		"CameraPose.hpp"
 		"CameraPoseLoader.hpp"
+		"ImageImport.hpp"
+		"Mesh.hpp"
+		"MeshLoader.hpp"
 		"PointCloud.hpp"
 		"PointCloudLoader.hpp"
+		"SandboxProject.hpp"
+		"SurfaceImport.hpp"
 	PRIVATE
 		"CameraPose.cpp"
 		"CameraPoseLoader.cpp"
+		"ImageImport.cpp"
+		"Mesh.cpp"
 		"PointCloud.cpp"
 		"PointCloudLoader.cpp"
+		"SandboxProject.cpp"
+		"SurfaceImport.cpp"
 )
 target_include_directories (
 	sfm_sandbox_scene

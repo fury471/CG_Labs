@@ -403,6 +403,162 @@ Recommended cadence:
 
 ---
 
+## Scheduled productization roadmap after Milestone 20
+
+Milestones 0-20 completed the original foundation roadmap. The sandbox is now a
+useful development viewer, but its own release-readiness notes still identify
+prototype-era limits: hard-coded startup samples, header-only milestone import
+code, debug-oriented image display, manual screenshot regression, no GPU timer
+queries, no packaged project/session format and incomplete license audit.
+
+The following milestones turn the sandbox into a more robust, extensible tool.
+They must be scheduled here before implementation and completed with the same
+build/test/documentation gates as earlier milestones.
+
+### Milestone 21 - Project manifest and importer module cleanup
+
+**Status:** Complete.
+
+**Purpose:** Replace hard-coded startup assumptions and header-only milestone
+leftovers with a registered scene-library import/config boundary.
+
+**Planned scope:**
+
+- add a small sandbox project manifest format for startup dataset paths;
+- load the default manifest from `res/sandbox/default_project.sfmproj`;
+- allow command-line `--project <path>` startup override;
+- keep manifest paths relative to the manifest file unless absolute;
+- split surface and image import implementations out of header-only code;
+- register import implementation files in `sfm_sandbox_scene`;
+- expand CPU tests for manifest parsing, relative path resolution, surface
+  validation and image validation;
+- document the manifest format and current limitations.
+
+**Acceptance criteria:**
+
+- `SfmSandbox` starts from the manifest-defined point cloud, camera poses,
+  surface and image;
+- invalid project files fail visibly and keep the documented sample fallback;
+- scene importers are compiled as normal library implementation files;
+- CTest covers manifest and importer failure cases;
+- root README and sandbox docs describe the project manifest workflow.
+
+### Milestone 22 - Application state and UI composition cleanup
+
+**Status:** Complete.
+
+**Purpose:** Move from a monolithic application loop toward maintainable
+application services without changing renderer behavior.
+
+**Planned scope:**
+
+- introduce small app-side state structs for point clouds, poses, surfaces,
+  images, render/profiling settings and stress scenes;
+- group reload transactions into focused helpers;
+- split status-panel drawing into named functions or app-local components;
+- keep reusable parsing/rendering logic below the app layer;
+- preserve all existing UI controls and failure-preservation behavior.
+
+**Acceptance criteria:**
+
+- `src/apps/SfmSandbox/main.cpp` no longer owns large unrelated blocks of data
+  and reload logic inline;
+- every reload path still preserves previous valid data on failure;
+- CTest and launch checks pass;
+- documentation records the new app composition boundary.
+
+### Milestone 23 - Textured image planes and calibrated image groundwork
+
+**Status:** Complete.
+
+**Purpose:** Replace the debug corner-colour image card with a real texture path
+and prepare for calibrated image/reprojection workflows.
+
+**Planned scope:**
+
+- add texture storage/upload policy to `Texture2D`;
+- add sampler configuration used by the image plane renderer;
+- add image-plane shaders with UV attributes;
+- render the PPM sample as a textured quad rather than interpolated corner
+  colours;
+- preserve CPU image importer tests and transactional reload behavior;
+- document current colour-space and calibration limitations.
+
+**Acceptance criteria:**
+
+- the associated image plane displays image content through an OpenGL texture;
+- invalid image reloads keep the previous image plane;
+- renderer statistics continue to account for image-plane draws;
+- CTest and launch checks pass.
+
+### Milestone 24 - Automated visual regression capture path
+
+**Status:** Complete.
+
+**Purpose:** Reduce reliance on purely manual screenshot checks.
+
+**Planned scope:**
+
+- add a deterministic startup scene metadata report;
+- add `--capture-baseline <output.ppm>` to render the startup scene once,
+  capture the back buffer as a binary PPM and exit;
+- archive visual regression metadata next to captures;
+- keep manual screenshot comparison as the fallback when platform/window
+  support prevents capture automation.
+
+**Acceptance criteria:**
+
+- documented command can capture the default sandbox visual baseline;
+- capture metadata includes build mode, framebuffer size, enabled layers,
+  dataset paths and scene counts;
+- failure to capture reports a clear reason without crashing.
+
+### Milestone 25 - GPU timing scopes and renderer pass telemetry
+
+**Status:** Complete.
+
+**Purpose:** Complete the profiling foundation promised by earlier milestones.
+
+**Planned scope:**
+
+- add move-only RAII query/timer wrappers in `sandbox/gfx`;
+- measure named GPU scopes for active renderer paths where supported;
+- report unavailable timer-query support honestly;
+- separate CPU and GPU timing displays;
+- document measurement caveats and repeatability rules.
+
+**Acceptance criteria:**
+
+- GPU pass timings are visible when timer queries are available;
+- unsupported timer-query paths show a diagnostic instead of fake timing;
+- M19 optimization interpretation can use real GPU data where available.
+
+### Milestone 26 - Release candidate packaging and license closure
+
+**Status:** Complete for development-release candidacy.
+
+**Purpose:** Decide what the sandbox can honestly claim as a distributable
+focused tool.
+
+**Planned scope:**
+
+- complete the project-owned resource inventory and record dependency license
+  evidence from the local dependency sources;
+- add `--validate-install` for a no-window startup/resource/shader check;
+- add CTest coverage for startup validation;
+- verify installed shader/resource lookup for `SfmSandbox`;
+- document release notes, known limitations and redistribution boundaries;
+- remove stale milestone wording from product-facing docs where appropriate.
+
+**Acceptance criteria:**
+
+- install/package smoke check launches or reports an actionable local blocker;
+- license status is explicit for dependencies, inherited assets and sandbox
+  samples;
+- the project claims only the readiness level supported by evidence.
+
+---
+
 ## Coverage check against original deferred backlog
 
 All deferred original roadmap items are scheduled:

@@ -70,6 +70,7 @@ src/
       Log.hpp
       Timer.hpp
       FileSystem.hpp
+      CommandLine.hpp/.cpp
     gfx/
       Buffer.hpp/.cpp
       VertexArray.hpp/.cpp
@@ -78,11 +79,13 @@ src/
       ShaderProgram.hpp/.cpp
       Framebuffer.hpp/.cpp
       RenderTarget.hpp/.cpp
+      FramebufferCapture.hpp/.cpp
       RenderCommand.hpp
       RenderQueue.hpp/.cpp
       Renderer.hpp/.cpp
       GpuProfiler.hpp/.cpp
     scene/
+      SandboxProject.hpp/.cpp
       Transform.hpp
       Camera.hpp/.cpp
       Mesh.hpp
@@ -102,9 +105,22 @@ src/
   apps/
     SfmSandbox/
       main.cpp
+      SfmSandboxApp.hpp/.cpp
 ```
 
 This is an intended structure, not a requirement to add empty files prematurely. Components are introduced only when their milestone needs them.
+
+Milestone 21 adds the first product-facing startup configuration boundary:
+
+```text
+SandboxProject
+```
+
+The project manifest describes which reconstruction resources should load at
+startup. It belongs in `scene` because it names scene/data assets and has no
+OpenGL dependency. The application may select the manifest through command-line
+arguments, but the parser and path resolution rules remain reusable library
+code.
 
 ## 6. Core domain model
 
@@ -120,6 +136,8 @@ Sampler      owns sampling state
 ShaderProgram owns a linked program and cached binding interface
 Framebuffer  owns attachment aggregation/validation
 RenderTarget owns resizable screen-dependent framebuffer resources
+FramebufferCapture owns framebuffer readback/export helpers
+GpuProfiler owns timer-query collection and pass telemetry
 ```
 
 A valid GPU owner is responsible for releasing its own resource. New code must not distribute manual `glDelete*` calls among callers.
@@ -174,6 +192,8 @@ Execute Renderer passes
         |
 Collect CPU/GPU profiling statistics
         |
+Optional visual baseline capture
+        |
 Draw development UI
         |
 Present frame
@@ -218,6 +238,10 @@ Required eventual metrics:
 | Point count / triangle count | Make comparisons reproducible |
 | Render-target extent and key formats | Interpret memory/bandwidth changes |
 
+Milestone 25 adds the first GPU timing path through `GpuTimerQuery` and
+`GpuFrameProfiler`. Timer-query support is detected at runtime and reported as
+unavailable instead of replacing missing GPU data with CPU timings.
+
 ## 10. Robustness architecture
 
 New code shall treat failures explicitly:
@@ -241,6 +265,36 @@ New analysis panel -> application UI consuming viz/renderer statistics
 ```
 
 A later graphics backend replacement is not promised, but the architecture avoids unnecessarily exposing raw OpenGL operations above `gfx`.
+
+### Project/session extension rule
+
+Startup datasets should be described by a project manifest instead of being
+hard-coded in `main.cpp`. New optional resource paths or viewer settings should
+extend the manifest parser with:
+
+- explicit key names;
+- relative path resolution against the manifest file;
+- visible diagnostics for unsupported keys or invalid values;
+- tests covering successful parsing and failure cases.
+
+This keeps the application useful with different reconstruction datasets while
+preserving deterministic sample defaults.
+
+### Application composition boundary
+
+Milestone 22 splits the executable entry point from app-local product state:
+
+```text
+main.cpp               platform/window/input/frame orchestration
+SfmSandboxApp.hpp/.cpp startup project, asset state, reload transactions,
+                       renderer instances and status-panel sections
+```
+
+This keeps reusable importers and renderers below the app layer while preventing
+the executable entry point from becoming the long-term container for unrelated
+viewer workflows. Future UI panels may be split further once their behavior is
+stable, but `main.cpp` should remain focused on platform lifecycle and frame
+coordination.
 
 ## 12. Commercial-readiness limits
 

@@ -78,7 +78,12 @@ void detach_and_delete_shaders(GLuint program, std::vector<GLuint>& shaders) noe
 
 [[nodiscard]] bool read_text_file(std::filesystem::path const& path, std::string& content, std::string& message)
 {
-	std::ifstream file{ path };
+	std::filesystem::path resolved_path = path;
+	std::ifstream file{ resolved_path };
+	if (!file) {
+		resolved_path = std::filesystem::path{ SFM_SANDBOX_SOURCE_DIR } / path;
+		file.open(resolved_path);
+	}
 	if (!file) {
 		message = "could not open shader file '" + path.string() + "'";
 		return false;
@@ -91,7 +96,7 @@ void detach_and_delete_shaders(GLuint program, std::vector<GLuint>& shaders) noe
 	}
 	content = stream.str();
 	if (content.empty()) {
-		message = "shader file is empty '" + path.string() + "'";
+		message = "shader file is empty '" + resolved_path.string() + "'";
 		return false;
 	}
 	return true;

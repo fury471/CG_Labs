@@ -11,6 +11,11 @@ dependencies/
 # Resources folder
 res/
 res.zip
+!res/
+res/*
+!res/sandbox/
+res/sandbox/*
+!res/sandbox/default_project.sfmproj
 
 # Application produced files
 imgui.ini

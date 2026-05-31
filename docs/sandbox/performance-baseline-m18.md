@@ -50,6 +50,7 @@ offscreen target size
 rebuild count after resize
 last completed CPU frame total
 named CPU pass timings
+named GPU pass timings or unavailable-timer diagnostic
 draw calls
 line vertices drawn
 point vertices drawn
@@ -85,4 +86,6 @@ If hardware information is not available, say so explicitly instead of guessing.
 
 Do not describe a change as faster or slower unless the before/after scene, camera, build type and measurement procedure are the same.
 
-M18 provides baseline instrumentation. M19 is the first milestone where optimization claims may be compared against this baseline.
+M18 provides baseline instrumentation. M25 adds GPU pass telemetry. M19 and
+later optimization claims should use GPU timings when available and otherwise
+state that only CPU timings were available.

@@ -1,5 +1,6 @@
 #include "sandbox/scene/CameraPoseLoader.hpp"
 #include "sandbox/scene/PointCloudLoader.hpp"
+#include "sandbox/scene/SandboxProject.hpp"
 
 #include <glm/glm.hpp>
 
@@ -332,6 +333,50 @@ void test_colmap_images_loader_computes_camera_center_from_world_to_camera_trans
 	require_vec3_near(glm::vec3{ pose.camera_to_world[3] }, glm::vec3{ 1.0f, 2.0f, 3.0f }, 0.0001f, "COLMAP camera center from -R^T t");
 }
 
+void test_sandbox_project_manifest_resolves_relative_paths()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const manifest = write_text_file(directory,
+	                                                       "project.sfmproj",
+	                                                       R"data(# relative paths resolve against this file
+point_cloud = data/points.ply
+camera_poses = poses.txt
+surface = meshes/surface.obj
+image = images/source.ppm
+)data");
+
+	sfm::scene::SandboxProjectLoadResult const result = sfm::scene::load_sandbox_project(manifest);
+	require(result.succeeded, "sandbox project manifest should load supported keys");
+	require(result.project.manifest_path == manifest, "manifest path should be preserved");
+	require(result.project.point_cloud_path == (directory.path() / "data/points.ply").lexically_normal(), "point-cloud path should resolve relative to manifest");
+	require(result.project.camera_pose_path == (directory.path() / "poses.txt").lexically_normal(), "camera-pose path should resolve relative to manifest");
+	require(result.project.surface_path == (directory.path() / "meshes/surface.obj").lexically_normal(), "surface path should resolve relative to manifest");
+	require(result.project.image_path == (directory.path() / "images/source.ppm").lexically_normal(), "image path should resolve relative to manifest");
+}
+
+void test_sandbox_project_manifest_rejects_invalid_input()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const missing_key_manifest = write_text_file(directory,
+	                                                                   "missing.sfmproj",
+	                                                                   R"data(point_cloud = points.ply
+camera_poses = poses.txt
+surface = surface.obj
+)data");
+	std::filesystem::path const unsupported_key_manifest = write_text_file(directory,
+	                                                                       "unsupported.sfmproj",
+	                                                                       R"data(point_cloud = points.ply
+camera_poses = poses.txt
+surface = surface.obj
+image = image.ppm
+unknown = value
+)data");
+
+	require(!sfm::scene::load_sandbox_project(missing_key_manifest).succeeded, "project manifest should reject missing required paths");
+	require(!sfm::scene::load_sandbox_project(unsupported_key_manifest).succeeded, "project manifest should reject unsupported keys");
+	require(!sfm::scene::load_sandbox_project(directory.path() / "does_not_exist.sfmproj").succeeded, "project manifest should reject missing files");
+}
+
 using TestFunction = void (*)();
 
 struct TestCase final
@@ -355,6 +400,8 @@ int main()
 		{ "camera pose dispatcher rejects unsupported extensions", test_camera_pose_dispatcher_rejects_unsupported_extensions },
 		{ "COLMAP images loader converts identity pose to internal graphics convention", test_colmap_images_loader_converts_identity_pose_to_internal_graphics_convention },
 		{ "COLMAP images loader computes camera center from world-to-camera translation", test_colmap_images_loader_computes_camera_center_from_world_to_camera_translation },
+		{ "sandbox project manifest resolves relative paths", test_sandbox_project_manifest_resolves_relative_paths },
+		{ "sandbox project manifest rejects invalid input", test_sandbox_project_manifest_rejects_invalid_input },
 	};
 
 	int failed = 0;

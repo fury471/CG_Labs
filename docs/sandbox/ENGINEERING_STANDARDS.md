@@ -88,9 +88,19 @@ May contain general facilities such as errors, timers, filesystem utilities and 
 
 Owns graphics-backend concepts: GPU resources, shader programs, render targets, submission and profiling. It may use OpenGL/GLFW integration as required; higher layers do not bypass it for normal rendering.
 
+Framebuffer readback, visual-baseline capture and GPU timer queries belong in
+`sandbox/gfx`. Application code may request these diagnostics, but raw OpenGL
+readback/query calls should not spread into UI or startup orchestration.
+
 ### `sandbox/scene`
 
 Owns spatial and renderable scene data: transforms, cameras, materials, meshes/references and frustum concepts. It describes content but does not call raw OpenGL APIs.
+
+Project manifests and scene/data importer dispatch also belong here when they
+describe startup datasets or convert files into CPU-side scene models. Importer
+implementations should be compiled as normal library sources once they stabilize;
+header-only importers are allowed only for small experiments or while a milestone
+is explicitly validating the API shape.
 
 ### `sandbox/viz`
 
@@ -99,6 +109,11 @@ Owns reconstruction-viewer semantics: point clouds, pose sets, trajectories, sou
 ### `apps/SfmSandbox`
 
 Owns application composition, runtime mode selection and development UI panels. Reusable rendering, data and import logic must migrate down to the appropriate library layer.
+
+Startup sample paths should come from a project manifest or command-line
+selection, not from scattered hard-coded app constants. The app may define
+documented fallback resources so the sandbox remains launchable in a clean
+checkout.
 
 ## 5. Graphics API and renderer standards
 
@@ -166,6 +181,10 @@ Point count or triangle count
 Framebuffer extent
 ```
 
+GPU timing must be reported separately from CPU frame timing. If timer queries
+are unavailable or delayed, show that diagnostic rather than substituting CPU
+values.
+
 ### 7.3 Benchmark discipline
 
 A performance result is not meaningful if camera position, dataset, build type or enabled debug features changed without being noted.
@@ -193,6 +212,15 @@ Add CPU-side tests early for deterministic components that do not require a live
 - render-queue ordering keys.
 
 GPU/render regression tests are introduced after the render path and representative datasets stabilize.
+
+Manifest/config parsing and importer validation are CPU-side behavior and must
+be covered by CTest whenever new accepted keys, formats or rejection rules are
+introduced.
+
+Startup/package validation that does not require a live OpenGL context should be
+available through a command-line path and covered by CTest. Visual capture paths
+may require a window/context, but they must still fail with an actionable
+diagnostic and non-zero exit status.
 
 ### 8.3 Definition of done for a milestone
 

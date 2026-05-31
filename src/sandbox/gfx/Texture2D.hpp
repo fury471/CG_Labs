@@ -2,6 +2,8 @@
 
 #include <glad/gl.h>
 
+#include <cstddef>
+#include <span>
 #include <string_view>
 
 namespace sfm::gfx
@@ -26,6 +28,25 @@ public:
 
 	[[nodiscard]] GLuint id() const noexcept { return m_id; }
 	[[nodiscard]] explicit operator bool() const noexcept { return m_id != 0u; }
+
+	[[nodiscard]] bool allocate_storage(GLsizei width, GLsizei height, GLenum internal_format, GLsizei levels = 1) const noexcept;
+	[[nodiscard]] bool upload_level(GLint level,
+	                                GLsizei width,
+	                                GLsizei height,
+	                                GLenum format,
+	                                GLenum type,
+	                                std::span<std::byte const> data) const noexcept;
+
+	template <typename T>
+	[[nodiscard]] bool upload_level(GLint level,
+	                                GLsizei width,
+	                                GLsizei height,
+	                                GLenum format,
+	                                GLenum type,
+	                                std::span<T const> data) const noexcept
+	{
+		return upload_level(level, width, height, format, type, std::as_bytes(data));
+	}
 
 	void reset() noexcept;
 

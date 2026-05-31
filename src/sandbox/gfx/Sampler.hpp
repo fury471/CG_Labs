@@ -27,6 +27,9 @@ public:
 	[[nodiscard]] GLuint id() const noexcept { return m_id; }
 	[[nodiscard]] explicit operator bool() const noexcept { return m_id != 0u; }
 
+	[[nodiscard]] bool set_parameter(GLenum parameter, GLint value) const noexcept;
+	[[nodiscard]] bool configure_linear_clamp() const noexcept;
+
 	void reset() noexcept;
 
 private:

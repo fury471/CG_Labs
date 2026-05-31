@@ -1,210 +1,43 @@
+#include "SfmSandboxApp.hpp"
 #include "config.hpp"
 #include "core/Bonobo.h"
 #include "sandbox/core/FrameClock.hpp"
 #include "sandbox/core/FrameProfiler.hpp"
-#include "sandbox/gfx/ClearPass.hpp"
-#include "sandbox/gfx/ImagePlaneRenderer.hpp"
-#include "sandbox/gfx/InstancedMarkerRenderer.hpp"
-#include "sandbox/gfx/OwnershipProbe.hpp"
-#include "sandbox/gfx/Renderer.hpp"
-#include "sandbox/gfx/RenderTarget.hpp"
-#include "sandbox/gfx/ShaderProgramProbe.hpp"
-#include "sandbox/gfx/SurfaceRenderer.hpp"
-#include "sandbox/scene/CameraPose.hpp"
-#include "sandbox/scene/CameraPoseLoader.hpp"
-#include "sandbox/scene/ImageImport.hpp"
-#include "sandbox/scene/PointCloud.hpp"
-#include "sandbox/scene/PointCloudLoader.hpp"
-#include "sandbox/scene/SurfaceImport.hpp"
 
 #include <imgui.h>
 
 #include <glm/gtc/constants.hpp>
 
-#include <algorithm>
-#include <array>
 #include <chrono>
 #include <clocale>
 #include <cstdlib>
-#include <filesystem>
+#include <iostream>
 #include <string>
 #include <utility>
 
-namespace
-{
-
-constexpr char const* kDefaultPointCloudResource = "sandbox/sample_point_cloud_ascii.ply";
-constexpr char const* kLegacyTextPointCloudResource = "sandbox/sample_point_cloud.xyzrgb";
-constexpr char const* kDefaultCameraPoseResource = "sandbox/sample_camera_poses.txt";
-constexpr char const* kDefaultSurfaceResource = "sandbox/sample_surface.obj";
-constexpr char const* kDefaultImageResource = "sandbox/sample_camera_image.ppm";
-
-void copy_path_to_buffer(std::array<char, 512>& buffer, std::filesystem::path const& path)
-{
-	std::string const text = path.string();
-	buffer.fill('\0');
-	std::size_t const count = std::min(text.size(), buffer.size() - 1u);
-	std::copy_n(text.data(), count, buffer.data());
-}
-
-void draw_point_cloud_statistics(sfm::scene::PointCloudStatistics const& statistics)
-{
-	ImGui::Text("Dataset point count: %zu", statistics.point_count);
-	ImGui::Text("Approx. CPU storage: %zu bytes", statistics.approximate_cpu_bytes);
-	if (!statistics.has_bounds) {
-		ImGui::TextUnformatted("Bounds: unavailable");
-		return;
-	}
-	ImGui::Text("Bounds min: %.3f, %.3f, %.3f", statistics.bounds_min.x, statistics.bounds_min.y, statistics.bounds_min.z);
-	ImGui::Text("Bounds max: %.3f, %.3f, %.3f", statistics.bounds_max.x, statistics.bounds_max.y, statistics.bounds_max.z);
-	ImGui::Text("Bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
-}
-
-void draw_surface_statistics(sfm::scene::SurfaceStatistics const& statistics)
-{
-	ImGui::Text("Surface vertices: %zu", statistics.vertex_count);
-	ImGui::Text("Surface triangles: %zu", statistics.triangle_count);
-	ImGui::Text("Approx. surface CPU storage: %zu bytes", statistics.approximate_cpu_bytes);
-	if (!statistics.has_bounds) {
-		ImGui::TextUnformatted("Surface bounds: unavailable");
-		return;
-	}
-	ImGui::Text("Surface bounds min: %.3f, %.3f, %.3f", statistics.bounds_min.x, statistics.bounds_min.y, statistics.bounds_min.z);
-	ImGui::Text("Surface bounds max: %.3f, %.3f, %.3f", statistics.bounds_max.x, statistics.bounds_max.y, statistics.bounds_max.z);
-	ImGui::Text("Surface bounds extent: %.3f, %.3f, %.3f", statistics.bounds_extent.x, statistics.bounds_extent.y, statistics.bounds_extent.z);
-}
-
-void draw_image_statistics(sfm::scene::ImageResource const& image)
-{
-	if (image.empty()) {
-		ImGui::TextUnformatted("Associated image: unavailable");
-		return;
-	}
-	ImGui::Text("Image size: %d x %d", image.width, image.height);
-	ImGui::Text("Image pixels: %zu", image.pixel_count());
-	ImGui::Text("Image format: %s", image.source_format.c_str());
-	ImGui::Text("Image source: %s", image.source_file.c_str());
-}
-
-void draw_render_target_status(sfm::gfx::RenderTargetStatus const& status)
-{
-	ImGui::Text("Offscreen target: %s", status.ready ? "complete" : "not ready");
-	ImGui::Text("Target size: %d x %d", status.width, status.height);
-	ImGui::Text("Framebuffer id: %u", status.framebuffer_id);
-	ImGui::Text("Colour texture id: %u", status.colour_texture_id);
-	ImGui::Text("Rebuilds after resize: %d", status.rebuild_count);
-	ImGui::TextWrapped("Framebuffer status: %s", status.message.c_str());
-}
-
-void draw_frame_profiler(sfm::core::FrameProfiler const& profiler)
-{
-	ImGui::Text("Last completed CPU frame total: %.3f ms", profiler.total_milliseconds());
-	for (sfm::core::TimedPass const& pass : profiler.passes())
-		ImGui::BulletText("%s: %.3f ms", pass.name.c_str(), pass.milliseconds);
-}
-
-void draw_marker_stress_statistics(sfm::gfx::MarkerStressStats const& statistics)
-{
-	ImGui::Text("Stress markers: %d", statistics.marker_count);
-	ImGui::Text("Active marker draw calls: %d", statistics.draw_calls);
-	ImGui::Text("Reference non-instanced draw calls: %d", statistics.reference_draw_calls);
-	ImGui::Text("Instanced draw calls: %d", statistics.instanced_draw_calls);
-	ImGui::Text("Marker vertices drawn: %d", statistics.vertices_drawn);
-	ImGui::Text("Draw-call reduction: %d", statistics.reference_draw_calls - statistics.instanced_draw_calls);
-	ImGui::Text("Active path: %s", statistics.using_instancing ? "instanced" : "reference non-instanced");
-}
-
-char const* colour_mode_label(sfm::gfx::PointColourMode mode)
-{
-	switch (mode) {
-	case sfm::gfx::PointColourMode::Source: return "Source colour";
-	case sfm::gfx::PointColourMode::Height: return "Height gradient";
-	case sfm::gfx::PointColourMode::Solid: return "Solid colour";
-	}
-	return "Unknown";
-}
-
-void draw_point_controls(sfm::gfx::PointCloudRenderSettings& settings)
-{
-	ImGui::SliderFloat("Point size", &settings.point_size, 1.0f, 18.0f, "%.1f px");
-	int colour_mode = static_cast<int>(settings.colour_mode);
-	if (ImGui::BeginCombo("Point colour mode", colour_mode_label(settings.colour_mode))) {
-		for (int value = 0; value <= 2; ++value) {
-			auto const mode = static_cast<sfm::gfx::PointColourMode>(value);
-			bool const selected = colour_mode == value;
-			if (ImGui::Selectable(colour_mode_label(mode), selected))
-				colour_mode = value;
-			if (selected)
-				ImGui::SetItemDefaultFocus();
-		}
-		ImGui::EndCombo();
-	}
-	settings.colour_mode = static_cast<sfm::gfx::PointColourMode>(colour_mode);
-	if (settings.colour_mode == sfm::gfx::PointColourMode::Solid)
-		ImGui::ColorEdit3("Solid point colour", &settings.solid_colour.x);
-	ImGui::Checkbox("Show point-cloud bounds", &settings.show_bounds);
-}
-
-void draw_camera_pose_metadata(sfm::scene::CameraPoseSet const& camera_poses, int& selected_pose)
-{
-	if (camera_poses.empty()) {
-		ImGui::TextUnformatted("Pose metadata: unavailable");
-		return;
-	}
-
-	int const max_pose_index = static_cast<int>(camera_poses.size() - 1u);
-	selected_pose = std::clamp(selected_pose, 0, max_pose_index);
-	ImGui::SliderInt("Selected pose", &selected_pose, 0, max_pose_index);
-
-	auto const poses = camera_poses.poses();
-	sfm::scene::CameraPose const& pose = poses[static_cast<std::size_t>(selected_pose)];
-	sfm::scene::CameraPoseMetadata const& metadata = pose.metadata;
-	glm::vec3 const position{ pose.camera_to_world[3] };
-	glm::vec3 const right{ pose.camera_to_world[0] };
-	glm::vec3 const up{ pose.camera_to_world[1] };
-	glm::vec3 const forward = -glm::vec3{ pose.camera_to_world[2] };
-
-	ImGui::Text("Index: %zu", metadata.index);
-	ImGui::Text("Source id: %d", metadata.source_id);
-	ImGui::Text("Camera id: %d", metadata.camera_id);
-	ImGui::Text("Source line: %zu", metadata.source_line);
-	ImGui::Text("Image/name: %s", metadata.image_name.empty() ? "<none>" : metadata.image_name.c_str());
-	ImGui::Text("Format: %s", metadata.source_format.c_str());
-	ImGui::Text("Source file: %s", metadata.source_file.empty() ? "<none>" : metadata.source_file.c_str());
-	ImGui::TextWrapped("Source convention: %s", metadata.source_convention.c_str());
-	ImGui::Text("Position: %.3f, %.3f, %.3f", position.x, position.y, position.z);
-	ImGui::Text("Forward: %.3f, %.3f, %.3f", forward.x, forward.y, forward.z);
-	ImGui::Text("Up: %.3f, %.3f, %.3f", up.x, up.y, up.z);
-	ImGui::Text("Right: %.3f, %.3f, %.3f", right.x, right.y, right.z);
-}
-
-void draw_renderer_frame_statistics(sfm::gfx::RendererFrameStatistics const& statistics,
-                                    sfm::gfx::SurfaceRendererStats const& surface_statistics,
-                                    sfm::gfx::ImagePlaneRendererStats const& image_statistics,
-                                    sfm::gfx::MarkerStressStats const& marker_statistics)
-{
-	ImGui::Text("Submitted items: %d", statistics.submitted_items);
-	ImGui::Text("Draw calls: %d + surface %d + image %d + markers %d", statistics.draw_calls, surface_statistics.draw_calls, image_statistics.draw_calls, marker_statistics.draw_calls);
-	ImGui::Text("Program binds: %d", statistics.program_binds);
-	ImGui::Text("Vertex-array binds: %d", statistics.vertex_array_binds);
-	ImGui::Text("Line vertices drawn: %d", statistics.line_vertices_drawn);
-	ImGui::Text("Point vertices drawn: %d", statistics.point_vertices_drawn);
-	ImGui::Text("Surface vertices drawn: %d", surface_statistics.vertices_drawn);
-	ImGui::Text("Surface triangles drawn: %d", surface_statistics.triangles_drawn);
-	ImGui::Text("Image-plane vertices drawn: %d", image_statistics.vertices_drawn);
-	ImGui::Text("Image-plane triangles drawn: %d", image_statistics.triangles_drawn);
-	ImGui::Text("Marker vertices drawn: %d", marker_statistics.vertices_drawn);
-}
-
-} // namespace
-
-int main()
+int main(int argc, char** argv)
 {
 	std::setlocale(LC_ALL, "");
 
+	sfm::app::StartupOptions startup_options = sfm::app::parse_startup_options(argc, argv);
+	if (startup_options.show_help) {
+		sfm::app::print_startup_help();
+		return EXIT_SUCCESS;
+	}
+	if (startup_options.validate_install) {
+		sfm::app::StartupValidationResult const validation = sfm::app::validate_startup_assets(startup_options);
+		std::ostream& stream = validation.succeeded ? std::cout : std::cerr;
+		for (std::string const& message : validation.messages)
+			stream << message << '\n';
+		return validation.succeeded ? EXIT_SUCCESS : EXIT_FAILURE;
+	}
+
 	Bonobo framework;
 	InputHandler input_handler;
-	FPSCameraf camera(0.5f * glm::half_pi<float>(), static_cast<float>(config::resolution_x) / static_cast<float>(config::resolution_y), 0.01f, 1000.0f);
+	FPSCameraf camera(0.5f * glm::half_pi<float>(),
+	                  static_cast<float>(config::resolution_x) / static_cast<float>(config::resolution_y),
+	                  0.01f,
+	                  1000.0f);
 	camera.mWorld.SetTranslate(glm::vec3(0.0f, 3.0f, 8.0f));
 	camera.mMovementSpeed = glm::vec3(6.0f);
 	camera.mMouseSensitivity = glm::vec2(0.003f);
@@ -217,394 +50,82 @@ int main()
 		return EXIT_FAILURE;
 	}
 
-	sfm::core::FrameClock frame_clock;
-	sfm::core::FrameProfiler frame_profiler;
-	sfm::gfx::RenderTarget offscreen_probe;
-	sfm::gfx::ClearPass clear_pass({ 0.035f, 0.055f, 0.090f, 1.0f });
-	clear_pass.initialise();
-	sfm::gfx::OwnershipProbeResult const ownership_probe = sfm::gfx::run_ownership_probe("SfmSandbox ownership probe");
-	sfm::gfx::ShaderProgramProbeResult const shader_program_probe = sfm::gfx::run_shader_program_probe();
+	int exit_code = EXIT_SUCCESS;
+	{
+		sfm::app::SfmSandboxApp app{ std::move(startup_options) };
+		[[maybe_unused]] bool const app_ready = app.initialise();
+		sfm::core::FrameClock frame_clock;
+		sfm::core::FrameProfiler frame_profiler;
+		bool capture_completed = false;
 
-	std::filesystem::path const default_point_cloud_path = config::resources_path(kDefaultPointCloudResource);
-	std::filesystem::path const legacy_text_point_cloud_path = config::resources_path(kLegacyTextPointCloudResource);
-	std::array<char, 512> point_cloud_path_buffer{};
-	copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
+		while (!glfwWindowShouldClose(window)) {
+			frame_profiler.begin_frame();
+			sfm::core::FrameTiming const frame_timing = frame_clock.tick();
+			auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(frame_timing.delta_seconds));
 
-	sfm::scene::PointCloudLoadResult point_cloud_load = sfm::scene::load_point_cloud_from_file(default_point_cloud_path);
-	bool using_loaded_point_cloud = point_cloud_load.succeeded;
-	sfm::scene::PointCloud point_cloud = using_loaded_point_cloud ? std::move(point_cloud_load.cloud) : sfm::scene::PointCloud::make_debug_cluster();
-	std::string active_point_cloud_source = using_loaded_point_cloud ? default_point_cloud_path.string() : "procedural fallback";
-	std::string last_point_cloud_reload_status = using_loaded_point_cloud ? "Initial point cloud loaded" : "Initial load failed; using procedural fallback";
-	int point_cloud_reload_count = 0;
+			{
+				auto scope = frame_profiler.scope("Input and camera update");
+				glfwPollEvents();
+				ImGuiIO& io = ImGui::GetIO();
+				io.FontGlobalScale = app.ui_scale();
+				input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
+				input_handler.Advance();
+				camera.Update(delta_time, input_handler);
 
-	std::filesystem::path const default_camera_pose_path = config::resources_path(kDefaultCameraPoseResource);
-	std::array<char, 512> camera_pose_path_buffer{};
-	copy_path_to_buffer(camera_pose_path_buffer, default_camera_pose_path);
-	sfm::scene::CameraPoseLoadResult camera_pose_load = sfm::scene::load_camera_poses_from_file(default_camera_pose_path);
-	bool using_loaded_camera_poses = camera_pose_load.succeeded;
-	sfm::scene::CameraPoseSet camera_poses = using_loaded_camera_poses ? std::move(camera_pose_load.poses) : sfm::scene::CameraPoseSet::make_debug_orbit();
-	std::string active_camera_pose_source = using_loaded_camera_poses ? default_camera_pose_path.string() : "procedural fallback";
-	std::string last_camera_pose_reload_status = using_loaded_camera_poses ? "Initial camera poses loaded" : "Initial load failed; using procedural fallback";
-	int camera_pose_reload_count = 0;
-	int selected_camera_pose = 0;
-
-	std::filesystem::path const default_surface_path = config::resources_path(kDefaultSurfaceResource);
-	std::array<char, 512> surface_path_buffer{};
-	copy_path_to_buffer(surface_path_buffer, default_surface_path);
-	sfm::scene::SurfaceImportResult surface_load = sfm::scene::import_surface(default_surface_path);
-	bool using_loaded_surface = surface_load.succeeded;
-	sfm::scene::SurfaceMesh surface_mesh = using_loaded_surface ? std::move(surface_load.mesh) : sfm::scene::SurfaceMesh{};
-	sfm::scene::SurfaceStatistics surface_statistics = sfm::scene::statistics_for(surface_mesh);
-	std::string active_surface_source = using_loaded_surface ? default_surface_path.string() : "no surface loaded";
-	std::string last_surface_reload_status = using_loaded_surface ? "Initial surface loaded" : "Initial surface load failed";
-	int surface_reload_count = 0;
-	bool show_surface = true;
-	glm::vec3 surface_colour{ 0.86f, 0.78f, 0.58f };
-
-	std::filesystem::path const default_image_path = config::resources_path(kDefaultImageResource);
-	std::array<char, 512> image_path_buffer{};
-	copy_path_to_buffer(image_path_buffer, default_image_path);
-	sfm::scene::ImageImportResult image_load = sfm::scene::import_image(default_image_path);
-	bool using_loaded_image = image_load.succeeded;
-	sfm::scene::ImageResource associated_image = using_loaded_image ? std::move(image_load.image) : sfm::scene::ImageResource{};
-	std::string active_image_source = using_loaded_image ? default_image_path.string() : "no image loaded";
-	std::string last_image_reload_status = using_loaded_image ? "Initial image loaded" : "Initial image load failed";
-	int image_reload_count = 0;
-	bool show_image_plane = true;
-	int associated_camera_index = 0;
-	float image_plane_distance = 0.65f;
-	float image_plane_height = 0.70f;
-
-	sfm::gfx::MarkerStressSettings marker_settings{};
-
-	sfm::gfx::PointCloudRenderSettings point_settings{};
-	sfm::gfx::Renderer renderer;
-	sfm::gfx::RendererBuildResult renderer_build = renderer.initialise(point_cloud, camera_poses);
-	sfm::gfx::SurfaceRenderer surface_renderer;
-	sfm::gfx::SurfaceRendererResult surface_renderer_result = surface_renderer.reload(surface_mesh, surface_colour);
-	sfm::gfx::ImagePlaneRenderer image_plane_renderer;
-	auto const poses_for_image = camera_poses.poses();
-	glm::mat4 image_camera_to_world = poses_for_image.empty() ? glm::mat4{ 1.0f } : poses_for_image[0].camera_to_world;
-	sfm::gfx::ImagePlaneRendererResult image_plane_result = image_plane_renderer.reload(associated_image, image_camera_to_world, image_plane_distance, image_plane_height);
-	sfm::gfx::InstancedMarkerRenderer marker_renderer;
-	sfm::gfx::MarkerRendererResult marker_renderer_result = marker_renderer.rebuild(marker_settings);
-
-	bool show_gui = true;
-	bool show_logs = false;
-	float ui_scale = 1.35f;
-
-	while (!glfwWindowShouldClose(window)) {
-		frame_profiler.begin_frame();
-		sfm::core::FrameTiming const frame_timing = frame_clock.tick();
-		auto const delta_time = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::duration<float>(frame_timing.delta_seconds));
-
-		{
-			auto scope = frame_profiler.scope("Input and camera update");
-			glfwPollEvents();
-			ImGuiIO& io = ImGui::GetIO();
-			io.FontGlobalScale = ui_scale;
-			input_handler.SetUICapture(io.WantCaptureMouse, io.WantCaptureKeyboard);
-			input_handler.Advance();
-			camera.Update(delta_time, input_handler);
-
-			if (input_handler.GetKeycodeState(GLFW_KEY_F2) & JUST_RELEASED)
-				show_gui = !show_gui;
-			if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
-				show_logs = !show_logs;
-			if (input_handler.GetKeycodeState(GLFW_KEY_F11) & JUST_RELEASED)
-				window_manager.ToggleFullscreenStatusForWindow(window);
-		}
-
-		int framebuffer_width = 0;
-		int framebuffer_height = 0;
-		{
-			auto scope = frame_profiler.scope("Resize and render-target validation");
-			glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
-			if (framebuffer_width > 0 && framebuffer_height > 0) {
-				camera.SetAspect(static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height));
-				offscreen_probe.ensure_size(framebuffer_width, framebuffer_height);
+				if (input_handler.GetKeycodeState(GLFW_KEY_F2) & JUST_RELEASED)
+					app.toggle_gui();
+				if (input_handler.GetKeycodeState(GLFW_KEY_F3) & JUST_RELEASED)
+					app.toggle_logs();
+				if (input_handler.GetKeycodeState(GLFW_KEY_F11) & JUST_RELEASED)
+					window_manager.ToggleFullscreenStatusForWindow(window);
 			}
-		}
 
-		{
-			auto scope = frame_profiler.scope("ImGui frame setup");
-			window_manager.NewImGuiFrame();
-		}
-		{
-			auto scope = frame_profiler.scope("Scene clear and draw");
-			clear_pass.render(framebuffer_width, framebuffer_height);
-			renderer.render(camera.GetWorldToClipMatrix(), point_settings);
-			surface_renderer.render(camera.GetWorldToClipMatrix(), show_surface);
-			image_plane_renderer.render(camera.GetWorldToClipMatrix(), show_image_plane);
-			marker_renderer.render(camera.GetWorldToClipMatrix(), marker_settings);
-		}
-
-		{
-			auto scope = frame_profiler.scope("Status panel UI");
-		if (ImGui::Begin("Sandbox status")) {
-			ImGui::TextUnformatted("SfM Visualization Sandbox");
-			ImGui::Separator();
-			ImGui::Text("Frame: %llu", static_cast<unsigned long long>(frame_timing.frame_index));
-			ImGui::Text("CPU frame: %.3f ms", frame_timing.delta_milliseconds);
-			ImGui::Text("FPS: %.1f", frame_timing.frames_per_second);
-			ImGui::Text("Framebuffer: %d x %d", framebuffer_width, framebuffer_height);
-			ImGui::Text("Camera aspect: %.3f", camera.GetAspect());
-			ImGui::SliderFloat("UI scale", &ui_scale, 1.0f, 2.0f, "%.2f x");
-			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 19: Instancing and workload stress scenes");
-			bool marker_rebuild_requested = false;
-			marker_rebuild_requested |= ImGui::Checkbox("Show marker stress scene", &marker_settings.visible);
-			ImGui::Checkbox("Use instanced marker path", &marker_settings.use_instancing);
-			marker_rebuild_requested |= ImGui::SliderInt("Stress marker count", &marker_settings.marker_count, 1, 5000);
-			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker radius", &marker_settings.radius, 0.5f, 10.0f, "%.2f");
-			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker height", &marker_settings.height, -2.0f, 4.0f, "%.2f");
-			marker_rebuild_requested |= ImGui::SliderFloat("Stress marker scale", &marker_settings.marker_scale, 0.01f, 0.25f, "%.3f");
-			if (marker_rebuild_requested || ImGui::Button("Rebuild marker stress scene"))
-				marker_renderer_result = marker_renderer.rebuild(marker_settings);
-			ImGui::Text("Marker renderer: %s", marker_renderer.ready() ? "ready" : "not ready");
-			draw_marker_stress_statistics(marker_renderer.frame_statistics());
-			ImGui::TextWrapped("M19 comparison: reference mode issues one draw call per marker; instanced mode draws the same marker workload with one instanced draw call.");
-			for (std::string const& message : marker_renderer_result.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("M18 render-target and profiling baseline");
-			draw_render_target_status(offscreen_probe.status());
-			draw_frame_profiler(frame_profiler);
-			ImGui::TextWrapped("Baseline scene: sample PLY point cloud + sample surface OBJ + sample PPM image plane + eight sample camera frustums + M19 marker stress scene.");
-			ImGui::TextWrapped("Timing results are reported honestly; M19 should demonstrate or refute the expected instancing improvement on local hardware.");
-			ImGui::Separator();
-			draw_point_cloud_statistics(point_cloud.statistics());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Camera image association");
-			ImGui::Checkbox("Show associated image plane", &show_image_plane);
-			draw_image_statistics(associated_image);
-			if (!camera_poses.empty()) {
-				int const max_camera_index = static_cast<int>(camera_poses.size() - 1u);
-				if (ImGui::SliderInt("Associated camera", &associated_camera_index, 0, max_camera_index)) {
-					associated_camera_index = std::clamp(associated_camera_index, 0, max_camera_index);
-					auto const poses = camera_poses.poses();
-					image_plane_result = image_plane_renderer.reload(associated_image, poses[static_cast<std::size_t>(associated_camera_index)].camera_to_world, image_plane_distance, image_plane_height);
+			int framebuffer_width = 0;
+			int framebuffer_height = 0;
+			{
+				auto scope = frame_profiler.scope("Resize and render-target validation");
+				glfwGetFramebufferSize(window, &framebuffer_width, &framebuffer_height);
+				if (framebuffer_width > 0 && framebuffer_height > 0) {
+					camera.SetAspect(static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height));
+					app.ensure_render_target_size(framebuffer_width, framebuffer_height);
 				}
 			}
-			bool image_plane_changed = false;
-			image_plane_changed |= ImGui::SliderFloat("Image plane distance", &image_plane_distance, 0.10f, 2.00f, "%.2f");
-			image_plane_changed |= ImGui::SliderFloat("Image plane height", &image_plane_height, 0.10f, 2.00f, "%.2f");
-			if (image_plane_changed && !camera_poses.empty()) {
-				auto const poses = camera_poses.poses();
-				associated_camera_index = std::clamp(associated_camera_index, 0, static_cast<int>(camera_poses.size() - 1u));
-				image_plane_result = image_plane_renderer.reload(associated_image, poses[static_cast<std::size_t>(associated_camera_index)].camera_to_world, image_plane_distance, image_plane_height);
-			}
-			ImGui::InputText("Image path", image_path_buffer.data(), image_path_buffer.size());
-			if (ImGui::Button("Load / Reload image")) {
-				std::filesystem::path const requested_path{ std::string{ image_path_buffer.data() } };
-				sfm::scene::ImageImportResult candidate_load = sfm::scene::import_image(requested_path);
-				if (candidate_load.succeeded) {
-					sfm::scene::ImageResource candidate_image = std::move(candidate_load.image);
-					auto const poses = camera_poses.poses();
-					glm::mat4 const pose = poses.empty() ? glm::mat4{ 1.0f } : poses[static_cast<std::size_t>(std::clamp(associated_camera_index, 0, static_cast<int>(poses.size() - 1u)))].camera_to_world;
-					sfm::gfx::ImagePlaneRendererResult candidate_plane = image_plane_renderer.reload(candidate_image, pose, image_plane_distance, image_plane_height);
-					if (candidate_plane.succeeded) {
-						associated_image = std::move(candidate_image);
-						image_load = std::move(candidate_load);
-						image_plane_result = std::move(candidate_plane);
-						using_loaded_image = true;
-						active_image_source = requested_path.string();
-						last_image_reload_status = "Image reload succeeded";
-						++image_reload_count;
-					} else {
-						image_plane_result = std::move(candidate_plane);
-						last_image_reload_status = "Image reload failed during GPU upload; previous image kept";
-					}
-				} else {
-					image_load = std::move(candidate_load);
-					last_image_reload_status = "Image reload failed during file load; previous image kept";
-				}
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Reset to image sample"))
-				copy_path_to_buffer(image_path_buffer, default_image_path);
-			ImGui::Text("Active image source: %s", using_loaded_image ? active_image_source.c_str() : "no image loaded");
-			ImGui::Text("Last image reload: %s", last_image_reload_status.c_str());
-			ImGui::Text("Successful image reloads: %d", image_reload_count);
-			ImGui::Text("Image-plane renderer: %s", image_plane_renderer.ready() ? "ready" : "not ready");
-			ImGui::TextWrapped("Projection sanity: image card is placed in the selected camera's local -Z direction; its centre should lie on that camera frustum forward ray.");
-			for (std::string const& message : image_load.messages)
-				ImGui::BulletText("%s", message.c_str());
-			for (std::string const& message : image_plane_result.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Surface mesh");
-			ImGui::Checkbox("Show surface mesh", &show_surface);
-			if (ImGui::ColorEdit3("Surface colour", &surface_colour.x)) {
-				sfm::gfx::SurfaceRendererResult colour_update = surface_renderer.reload(surface_mesh, surface_colour);
-				if (colour_update.succeeded)
-					surface_renderer_result = std::move(colour_update);
-				else
-					last_surface_reload_status = "Surface colour update failed; previous surface kept";
-			}
-			if (ImGui::Button("Rebuild surface colour"))
-				surface_renderer_result = surface_renderer.reload(surface_mesh, surface_colour);
-			draw_surface_statistics(surface_statistics);
-			ImGui::Text("Surface source: %s", active_surface_source.c_str());
-			ImGui::Text("Surface renderer: %s", surface_renderer.ready() ? "ready" : "not ready");
-			ImGui::Text("Surface GPU triangles: %d", surface_renderer.triangle_count());
-			ImGui::InputText("Surface path", surface_path_buffer.data(), surface_path_buffer.size());
-			if (ImGui::Button("Load / Reload surface")) {
-				std::filesystem::path const requested_path{ std::string{ surface_path_buffer.data() } };
-				sfm::scene::SurfaceImportResult candidate_load = sfm::scene::import_surface(requested_path);
-				if (candidate_load.succeeded) {
-					sfm::scene::SurfaceMesh candidate_mesh = std::move(candidate_load.mesh);
-					sfm::gfx::SurfaceRendererResult candidate_render = surface_renderer.reload(candidate_mesh, surface_colour);
-					if (candidate_render.succeeded) {
-						surface_mesh = std::move(candidate_mesh);
-						surface_statistics = sfm::scene::statistics_for(surface_mesh);
-						surface_load = std::move(candidate_load);
-						surface_renderer_result = std::move(candidate_render);
-						using_loaded_surface = true;
-						active_surface_source = requested_path.string();
-						last_surface_reload_status = "Surface reload succeeded";
-						++surface_reload_count;
-					} else {
-						surface_renderer_result = std::move(candidate_render);
-						last_surface_reload_status = "Surface reload failed during GPU upload; previous surface kept";
-					}
-				} else {
-					surface_load = std::move(candidate_load);
-					last_surface_reload_status = "Surface reload failed during file load; previous surface kept";
-				}
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Reset to surface sample"))
-				copy_path_to_buffer(surface_path_buffer, default_surface_path);
-			ImGui::Text("Active surface source: %s", using_loaded_surface ? active_surface_source.c_str() : "no surface loaded");
-			ImGui::Text("Last surface reload: %s", last_surface_reload_status.c_str());
-			ImGui::Text("Successful surface reloads: %d", surface_reload_count);
-			ImGui::Text("Skipped surface lines: %zu", surface_load.skipped_lines);
-			for (std::string const& message : surface_load.messages)
-				ImGui::BulletText("%s", message.c_str());
-			for (std::string const& message : surface_renderer_result.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Point display");
-			draw_point_controls(point_settings);
-			ImGui::Separator();
-			ImGui::TextUnformatted("Camera poses");
-			ImGui::Text("Camera pose source: %s", active_camera_pose_source.c_str());
-			ImGui::Text("Camera poses: %zu", camera_poses.size());
-			ImGui::Text("Pose format: %s", camera_pose_load.source_format.empty() ? "<unknown>" : camera_pose_load.source_format.c_str());
-			ImGui::Text("Skipped pose lines: %zu", camera_pose_load.skipped_lines);
-			ImGui::Text("Camera line vertices: %d", renderer.camera_line_vertex_count());
-			draw_camera_pose_metadata(camera_poses, selected_camera_pose);
-			for (std::string const& message : camera_pose_load.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Camera pose reload");
-			ImGui::InputText("Pose path", camera_pose_path_buffer.data(), camera_pose_path_buffer.size());
-			if (ImGui::Button("Load / Reload poses")) {
-				std::filesystem::path const requested_path{ std::string{ camera_pose_path_buffer.data() } };
-				sfm::scene::CameraPoseLoadResult candidate_load = sfm::scene::load_camera_poses_from_file(requested_path);
-				if (candidate_load.succeeded) {
-					sfm::scene::CameraPoseSet candidate_poses = std::move(candidate_load.poses);
-					sfm::gfx::RendererBuildResult candidate_renderer_build = renderer.reload_camera_poses(candidate_poses);
-					if (candidate_renderer_build.succeeded) {
-						camera_poses = std::move(candidate_poses);
-						camera_pose_load = std::move(candidate_load);
-						renderer_build = std::move(candidate_renderer_build);
-						using_loaded_camera_poses = true;
-						active_camera_pose_source = requested_path.string();
-						last_camera_pose_reload_status = "Pose reload succeeded";
-						selected_camera_pose = 0;
-						++camera_pose_reload_count;
-					} else {
-						renderer_build = std::move(candidate_renderer_build);
-						last_camera_pose_reload_status = "Pose reload failed during GPU upload; previous poses kept";
-					}
-				} else {
-					camera_pose_load = std::move(candidate_load);
-					last_camera_pose_reload_status = "Pose reload failed during file load; previous poses kept";
-				}
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Reset to pose sample"))
-				copy_path_to_buffer(camera_pose_path_buffer, default_camera_pose_path);
-			ImGui::Text("Active pose source: %s", using_loaded_camera_poses ? active_camera_pose_source.c_str() : "procedural fallback");
-			ImGui::Text("Last pose reload: %s", last_camera_pose_reload_status.c_str());
-			ImGui::Text("Successful pose reloads: %d", camera_pose_reload_count);
-			ImGui::Separator();
-			ImGui::TextUnformatted("Point cloud reload");
-			ImGui::InputText("Path", point_cloud_path_buffer.data(), point_cloud_path_buffer.size());
-			if (ImGui::Button("Load / Reload")) {
-				std::filesystem::path const requested_path{ std::string{ point_cloud_path_buffer.data() } };
-				sfm::scene::PointCloudLoadResult candidate_load = sfm::scene::load_point_cloud_from_file(requested_path);
-				if (candidate_load.succeeded) {
-					sfm::scene::PointCloud candidate_cloud = std::move(candidate_load.cloud);
-					sfm::gfx::RendererBuildResult candidate_renderer_build = renderer.reload_point_cloud(candidate_cloud);
-					if (candidate_renderer_build.succeeded) {
-						point_cloud = std::move(candidate_cloud);
-						point_cloud_load = std::move(candidate_load);
-						renderer_build = std::move(candidate_renderer_build);
-						using_loaded_point_cloud = true;
-						active_point_cloud_source = requested_path.string();
-						last_point_cloud_reload_status = "Reload succeeded";
-						++point_cloud_reload_count;
-					} else {
-						renderer_build = std::move(candidate_renderer_build);
-						last_point_cloud_reload_status = "Reload failed during GPU upload; previous cloud kept";
-					}
-				} else {
-					point_cloud_load = std::move(candidate_load);
-					last_point_cloud_reload_status = "Reload failed during file load; previous cloud kept";
-				}
-			}
-			ImGui::SameLine();
-			if (ImGui::Button("Reset to PLY sample"))
-				copy_path_to_buffer(point_cloud_path_buffer, default_point_cloud_path);
-			ImGui::SameLine();
-			if (ImGui::Button("Reset to text sample"))
-				copy_path_to_buffer(point_cloud_path_buffer, legacy_text_point_cloud_path);
-			ImGui::Text("Active source: %s", using_loaded_point_cloud ? active_point_cloud_source.c_str() : "procedural fallback");
-			ImGui::Text("Last reload: %s", last_point_cloud_reload_status.c_str());
-			ImGui::Text("Successful reloads: %d", point_cloud_reload_count);
-			ImGui::Text("CPU point samples: %zu", point_cloud.size());
-			ImGui::Text("Skipped input lines: %zu", point_cloud_load.skipped_lines);
-			for (std::string const& message : point_cloud_load.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Renderer status");
-			ImGui::Text("Renderer: %s", renderer.ready() ? "ready" : "failed");
-			ImGui::Text("Surface renderer: %s", surface_renderer.ready() ? "ready" : "not ready");
-			ImGui::Text("Image-plane renderer: %s", image_plane_renderer.ready() ? "ready" : "not ready");
-			ImGui::Text("Marker renderer: %s", marker_renderer.ready() ? "ready" : "not ready");
-			ImGui::Text("Grid/axis line vertices: %d", renderer.line_vertex_count());
-			ImGui::Text("Bounds line vertices: %d", renderer.bounds_line_vertex_count());
-			ImGui::Text("GPU point vertices: %d", renderer.point_count());
-			draw_renderer_frame_statistics(renderer.frame_statistics(), surface_renderer.frame_statistics(), image_plane_renderer.frame_statistics(), marker_renderer.frame_statistics());
-			for (std::string const& message : renderer_build.messages)
-				ImGui::BulletText("%s", message.c_str());
-			ImGui::Separator();
-			ImGui::TextUnformatted("Milestone 3 regression: ShaderProgram cache");
-			ImGui::Text("Shader probe: %s", shader_program_probe.passed ? "passed" : "failed");
-			ImGui::TextUnformatted("Milestone 2 regression: GPU RAII ownership");
-			ImGui::Text("Ownership probe: %s", ownership_probe.passed ? "passed" : "failed");
-			ImGui::Separator();
-			ImGui::TextUnformatted("Controls: WASD/QE move, left mouse drag look, F2 UI, F3 logs, F11 fullscreen, Esc quit");
-		}
-		ImGui::End();
-		}
 
-		{
-			auto scope = frame_profiler.scope("Log and ImGui submit");
-			if (show_logs)
-				Log::View::Render();
-			window_manager.RenderImGuiFrame(show_gui);
+			{
+				auto scope = frame_profiler.scope("ImGui frame setup");
+				window_manager.NewImGuiFrame();
+			}
+			{
+				auto scope = frame_profiler.scope("Scene clear and draw");
+				app.render_scene(camera.GetWorldToClipMatrix(), framebuffer_width, framebuffer_height);
+				if (app.capture_requested() && !capture_completed) {
+					bool const captured = app.capture_baseline(framebuffer_width, framebuffer_height);
+					std::ostream& stream = captured ? std::cout : std::cerr;
+					for (std::string const& message : app.capture_messages())
+						stream << message << '\n';
+					exit_code = captured ? EXIT_SUCCESS : EXIT_FAILURE;
+					capture_completed = true;
+					glfwSetWindowShouldClose(window, GLFW_TRUE);
+				}
+			}
+			{
+				auto scope = frame_profiler.scope("Status panel UI");
+				app.draw_status_panel(frame_timing, frame_profiler, framebuffer_width, framebuffer_height, camera.GetAspect());
+			}
+			{
+				auto scope = frame_profiler.scope("Log and ImGui submit");
+				if (app.show_logs())
+					Log::View::Render();
+				window_manager.RenderImGuiFrame(app.show_gui());
+			}
+			{
+				auto scope = frame_profiler.scope("Swap buffers");
+				glfwSwapBuffers(window);
+			}
+			frame_profiler.end_frame();
 		}
-		{
-			auto scope = frame_profiler.scope("Swap buffers");
-			glfwSwapBuffers(window);
-		}
-		frame_profiler.end_frame();
 	}
 
 	window_manager.DestroyWindow(window);
-	return EXIT_SUCCESS;
+	return exit_code;
 }

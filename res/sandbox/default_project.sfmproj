@@ -1,0 +1,7 @@
+# Default SfM Visualization Sandbox project.
+# Paths are relative to this manifest file.
+
+point_cloud = sample_point_cloud_ascii.ply
+camera_poses = sample_camera_poses.txt
+surface = sample_surface.obj
+image = sample_camera_image.ppm

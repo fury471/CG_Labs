@@ -8,6 +8,7 @@ Use this checklist before merging rendering or data-visualization changes into `
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
+build\src\apps\SfmSandbox\SfmSandbox.exe --validate-install
 ```
 
 ## Required launch checks
@@ -23,6 +24,7 @@ EDAN35_Assignment2
 After launching `SfmSandbox`, verify the default scene shows:
 
 ```text
+default project manifest loaded or sample fallback reported
 point cloud
 point-cloud bounds
 surface mesh
@@ -32,6 +34,7 @@ associated image plane
 M19 marker stress scene
 M18 render-target status
 M18/M19 draw statistics
+M25 GPU timing diagnostics or unavailable-timer message
 ```
 
 ## Required UI checks
@@ -50,27 +53,45 @@ marker count slider updates reference/instanced draw-call comparison after rebui
 window resize keeps render target complete
 ```
 
-## Screenshot baseline procedure
+## Automated capture procedure
 
 For any PR that changes rendering output:
 
-1. Capture a screenshot of the default startup view.
-2. Record:
+1. Capture the default startup scene:
+
+```bat
+build\src\apps\SfmSandbox\SfmSandbox.exe --capture-baseline build\sandbox-captures\sfm-baseline.ppm
+```
+
+2. Keep the generated metadata beside the image:
+
+```text
+build\sandbox-captures\sfm-baseline.ppm.txt
+```
+
+3. Confirm the metadata records:
 
 ```text
 branch
 commit or PR number
 build type
 framebuffer size
+project manifest
+point count
+camera pose count
+surface visibility and triangle count
+image visibility and size
 marker count
 instancing on/off
 point display settings
-surface/image visibility
 ```
 
-3. Compare against the previous milestone screenshot for missing major components.
+4. Compare against the previous milestone capture or screenshot for missing
+major components.
 
-Current strategy is manual visual regression. Automated screenshot comparison is deferred until the active rendering path and UI layout stabilize further.
+If the local platform cannot create a window/context for capture, use a manual
+screenshot and record the failure reason from the capture command. Automated
+pixel-threshold comparison is still deferred.
 
 ## Failure policy
 

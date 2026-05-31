@@ -3,6 +3,8 @@ target_sources (
 	SfmSandbox
 	PRIVATE
 		[[main.cpp]]
+		[[SfmSandboxApp.cpp]]
+		[[SfmSandboxApp.hpp]]
 )
 target_link_libraries (
 	SfmSandbox

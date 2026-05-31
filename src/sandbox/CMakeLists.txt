@@ -3,6 +3,11 @@
 add_library (sfm_sandbox_options INTERFACE)
 target_link_libraries (sfm_sandbox_options INTERFACE CG_Labs_options)
 target_compile_features (sfm_sandbox_options INTERFACE cxx_std_20)
+target_compile_definitions (
+	sfm_sandbox_options
+	INTERFACE
+		SFM_SANDBOX_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
 target_compile_options (
 	sfm_sandbox_options
 	INTERFACE

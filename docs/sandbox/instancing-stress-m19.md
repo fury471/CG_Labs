@@ -58,6 +58,8 @@ reference: marker_count draw calls
 
 8. Change `Stress marker count` and rebuild/observe the new counts.
 9. Record the named CPU pass timings from the M18 profiler section.
+10. Record M25 GPU pass timings when timer queries are available, especially
+    the marker stress scene pass.
 
 ## Interpretation rule
 
@@ -72,7 +74,8 @@ Do not claim a general performance improvement without repeated measurements und
 
 ## Known limitations
 
-- M19 uses CPU-side named timings from M18, not GPU timer queries.
+- GPU timer queries are available only when the runtime OpenGL context reports
+  `GL_TIME_ELAPSED` support.
 - The stress scene uses synthetic debug markers, not real SfM feature tracks.
 - The non-instanced reference path uses repeated draw calls over the same instanced vertex layout for comparison; it is a controlled baseline, not an optimized non-instanced renderer.
 - Timing results depend on hardware, driver, build type, framebuffer size and UI visibility.
