@@ -36,6 +36,10 @@ Do not globally force legacy assignment targets to C++20 merely to satisfy new c
 - Ninja is the primary local generator for the VS 2026/MSVC workflow.
 - A clean configure/build must remain possible from a Visual Studio x64 development terminal.
 - Source lists are explicit in CMake; do not depend on automatic globbing for production sources.
+- FetchContent dependencies use `FetchContent_MakeAvailable` instead of direct
+  project-time `FetchContent_Populate` calls. Use `SOURCE_SUBDIR` when a
+  dependency is intentionally fetched only for known source files rather than
+  added as an upstream CMake project.
 - Dependencies are added only when they clearly remove more cost/risk than they introduce.
 
 ### 2.3 Compiler quality settings
@@ -102,6 +106,11 @@ implementations should be compiled as normal library sources once they stabilize
 header-only importers are allowed only for small experiments or while a milestone
 is explicitly validating the API shape.
 
+Point-to-mesh builders also belong below the app layer. They must consume
+CPU-side scene/viz models, return explicit diagnostics and avoid OpenGL/UI
+dependencies so command-line conversion and CTest can cover the same behavior as
+the interactive viewer.
+
 ### `sandbox/viz`
 
 Owns reconstruction-viewer semantics: point clouds, pose sets, trajectories, source-image relationships and reconstruction inspection tools. It consumes scene/gfx services and does not initialize the platform window.
@@ -114,6 +123,23 @@ Startup sample paths should come from a project manifest or command-line
 selection, not from scattered hard-coded app constants. The app may define
 documented fallback resources so the sandbox remains launchable in a clean
 checkout.
+
+App-local production code is split by workflow boundary:
+
+- `main.cpp` owns platform/window/input/frame orchestration only;
+- startup parsing, startup validation and no-window commands live in
+  `SfmSandboxStartup`;
+- app-local workflow services own asynchronous job state, safety guards and
+  diagnostics when the behavior is not reusable enough for `scene`/`gfx`;
+- app-local panel helpers own ImGui widget layout and return explicit user
+  actions rather than mutating renderer state directly;
+- `SfmSandboxApp` owns the live interactive viewer state and UI composition;
+- generated or imported data workflows return explicit result objects with
+  diagnostics instead of writing directly to process output from deep code.
+
+Dear ImGui panels may be immediate-mode, but application data remains the
+single source of truth. UI helpers should mutate explicit app/service state and
+avoid duplicating hidden retained state unless the state is genuinely UI-local.
 
 ## 5. Graphics API and renderer standards
 
@@ -217,6 +243,10 @@ Manifest/config parsing and importer validation are CPU-side behavior and must
 be covered by CTest whenever new accepted keys, formats or rejection rules are
 introduced.
 
+Reconstruction builders must have CPU-side tests for successful output,
+degenerate input, duplicate handling and export validity before the UI can claim
+the workflow is supported.
+
 Startup/package validation that does not require a live OpenGL context should be
 available through a command-line path and covered by CTest. Visual capture paths
 may require a window/context, but they must still fail with an actionable
@@ -269,6 +299,9 @@ The project may be designed for eventual commercial extension, but it is not con
 ## 11. References
 
 - CMake compile features: <https://cmake.org/cmake/help/latest/manual/cmake-compile-features.7.html>
+- CMake FetchContent: <https://cmake.org/cmake/help/latest/module/FetchContent.html>
+- CMake target sources: <https://cmake.org/cmake/help/latest/command/target_sources.html>
 - C++ Core Guidelines, including RAII and resource management: <https://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines>
+- Dear ImGui FAQ and integration notes: <https://github.com/ocornut/imgui/blob/master/docs/FAQ.md>
 - OpenGL 4.6 Core Profile Specification: <https://registry.khronos.org/OpenGL/specs/gl/glspec46.core.pdf>
 - Khronos OpenGL Direct State Access overview: <https://wikis.khronos.org/opengl/Direct_State_Access>

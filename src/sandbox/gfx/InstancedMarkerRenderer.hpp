@@ -25,7 +25,7 @@ struct MarkerStressSettings final
 	float height{ 1.2f };
 	float marker_scale{ 0.06f };
 	bool use_instancing{ true };
-	bool visible{ true };
+	bool visible{ false };
 };
 
 struct MarkerStressStats final

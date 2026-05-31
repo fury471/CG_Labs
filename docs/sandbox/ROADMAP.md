@@ -559,6 +559,247 @@ focused tool.
 
 ---
 
+## Scheduled reconstruction-workbench roadmap after Milestone 26
+
+Milestones 0-26 made the sandbox a robust focused viewer and development
+release candidate. The next product direction is broader: it should become a
+reconstruction workbench that can derive, inspect and export geometry from point
+data rather than only display assets produced elsewhere.
+
+The workbench direction must stay honest. A complete point-cloud-to-mesh
+product needs normals, outlier filtering, scale-aware reconstruction settings,
+quality diagnostics and multiple algorithms. The first milestones therefore add
+constrained, testable builder capabilities before claiming general 3D
+reconstruction.
+
+### Milestone 27 - Point-cloud-to-mesh builder foundation
+
+**Status:** Complete.
+
+**Purpose:** Add the first conversion path from a loaded point cloud to a
+surface mesh, with clear algorithm limits and export support.
+
+**Planned scope:**
+
+- add a CPU-side point-to-mesh builder module below the app layer;
+- triangulate suitable surface-like point clouds by projecting to a selected
+  plane, running deterministic 2D triangulation and lifting triangles back to
+  3D;
+- reject degenerate input, duplicate projected samples and invalid triangles
+  explicitly;
+- expose build settings for projection plane, weld tolerance, minimum triangle
+  area, maximum edge length and maximum projected points;
+- allow building the active viewer surface from the active point cloud;
+- keep the interactive app responsive by refusing oversized builds and running
+  accepted builds asynchronously;
+- add a no-window `--build-mesh <output.obj>` command for point-cloud to OBJ
+  conversion from the selected project manifest;
+- add OBJ export for generated meshes;
+- document algorithm constraints, suitable data and unsuitable data.
+
+**Acceptance criteria:**
+
+- a synthetic point cloud can be converted to a valid `SurfaceMesh`;
+- generated mesh rendering preserves previous visible surface on build/upload
+  failure;
+- oversized interactive builds report a clear diagnostic instead of freezing the
+  UI;
+- `SfmSandbox --build-mesh output.obj` writes a valid OBJ or exits with clear
+  diagnostics;
+- CTest covers successful triangulation, degenerate input and export/import
+  round-trip plus the no-window CLI builder;
+- root README and sandbox docs describe the builder workflow without claiming
+  general-purpose reconstruction.
+
+### Milestone 28 - Reconstruction quality controls and diagnostics
+
+**Status:** Complete.
+
+**Purpose:** Make generated meshes inspectable and debuggable instead of opaque
+black-box output.
+
+**Planned scope:**
+
+- report unique point count, duplicate count, rejected triangle count and output
+  triangle count;
+- visualize rejected/long-edge thresholds where practical;
+- add mesh/source provenance metadata to captures and exports;
+- add quality warnings for sparse, collinear, duplicate-heavy or unsuitable
+  point distributions;
+- keep generated and imported surface states clearly distinguishable.
+
+**Acceptance criteria:**
+
+- build diagnostics are visible in UI and CLI output;
+- exported OBJ includes generation comments;
+- invalid or poor-quality input explains why output is empty or limited;
+- visual baseline metadata records whether the surface is imported or generated.
+
+**Delivered:**
+
+- builder diagnostics include input points, unique projected points, welded
+  duplicates, invalid skipped points, rejected triangles and output mesh size;
+- quality warnings flag sparse projected evidence, heavy welding and triangle
+  filtering;
+- mesh-builder UI shows the resolved projection and all core build counters;
+- generated OBJ files include multi-line provenance comments for source point
+  cloud, algorithm, projection and build counters;
+- visual capture metadata records surface kind, source format, vertex/triangle
+  counts and generated-mesh build counters when applicable.
+
+### Milestone 29 - Real reconstruction algorithm integration decision
+
+**Status:** Complete.
+
+**Purpose:** Decide the next reconstruction algorithm based on real data needs
+instead of hand-rolling a fragile general solver.
+
+**Planned scope:**
+
+- evaluate dependency-backed options such as screened Poisson, ball pivoting,
+  alpha shapes or CGAL/Open3D-style workflows;
+- define required input metadata: normals, confidence, scale, cameras or dense
+  samples;
+- decide whether integration happens in-process, as an optional tool adapter or
+  through a command-line pipeline;
+- document license, packaging and performance implications before committing to
+  a dependency.
+
+**Acceptance criteria:**
+
+- decision record exists before adding a heavy reconstruction dependency;
+- selected algorithm has test data and failure cases;
+- licensing and packaging implications are recorded;
+- M27 remains the fallback deterministic builder for small surface-like data.
+
+**Delivered:**
+
+- ADR 0003 selects an optional Open3D-backed adapter as the first real
+  reconstruction path, with Screened Poisson first and Ball Pivoting / Alpha
+  Shapes as secondary modes;
+- CGAL and PCL remain comparison/future options because they need additional
+  license, packaging and parameter-policy work;
+- generated synthetic test-data requirements and failure cases are recorded
+  before implementation;
+- M27 remains the built-in deterministic fallback.
+
+---
+
+## Scheduled production-hardening track after Milestone 27
+
+M27 proved the workbench direction, but it also exposed a product risk: the
+application layer can become messy if each new workflow adds parsing,
+validation, UI, rendering and export code to one large class. The next hardening
+track keeps feature work extendable before the reconstruction algorithms become
+more complex.
+
+### Milestone 30 - Application command and runtime decomposition
+
+**Status:** Complete.
+
+**Purpose:** Split app-local workflows by responsibility so startup commands,
+no-window conversion and the live viewer can evolve independently.
+
+**Planned scope:**
+
+- move command-line parsing, startup validation and no-window mesh export out of
+  `SfmSandboxApp`;
+- keep `main.cpp` limited to platform/window/input/frame orchestration and
+  runtime mode dispatch;
+- keep `SfmSandboxApp` focused on interactive viewer state, reload
+  transactions, renderer instances and UI composition;
+- route command workflows through explicit result structs with diagnostics;
+- preserve `--help`, `--validate-install`, `--capture-baseline` and
+  `--build-mesh` behavior.
+
+**Acceptance criteria:**
+
+- app startup/no-window command code lives in an app-local startup module;
+- live viewer code no longer owns command-line parsing or process-output
+  formatting;
+- build, CTest, `--build-mesh`, `--mesh-max-points` guard and `--help` pass;
+- architecture and engineering standards document the new app boundary.
+
+**Delivered:**
+
+- `SfmSandboxStartup` owns command-line parsing, startup validation and
+  no-window mesh export;
+- `main.cpp` dispatches startup modes before entering the windowed frame loop;
+- `SfmSandboxApp` keeps the interactive viewer state, renderer ownership and UI
+  composition;
+- validation covered build, CTest, CLI mesh export, max-point guard, help output
+  and a one-frame baseline capture smoke.
+
+### Milestone 31 - Mesh-builder workflow and panel extraction
+
+**Status:** Complete.
+
+**Purpose:** Continue shrinking the live app class by splitting the stable
+mesh-builder UI and asynchronous workflow state without creating speculative
+framework code.
+
+**Planned scope:**
+
+- extract mesh-builder workflow state from raw UI drawing;
+- split the mesh-builder status-panel section into a focused app-local panel
+  helper;
+- keep panel helpers thin and data-driven, with scene/gfx work below the app
+  layer;
+- add focused tests for any extracted CPU-side workflow service.
+
+**Acceptance criteria:**
+
+- mesh builder UI no longer mixes long-running job orchestration, rendering
+  upload and widget layout in one function;
+- failed reload/build/export transactions still preserve prior visible state;
+- no reusable CPU algorithm remains trapped in `apps/SfmSandbox`.
+
+**Delivered:**
+
+- `SfmSandboxMeshWorkflow` owns async build state, point-limit refusal, export
+  bookkeeping, status messages and counters;
+- `SfmSandboxMeshBuilderPanel` owns the ImGui controls and returns explicit
+  build/export actions;
+- `SfmSandboxApp` keeps renderer upload and prior-surface preservation at the
+  live viewer boundary;
+- `sfm_sandbox_mesh_workflow_tests` covers synchronous refusal, async success
+  and export bookkeeping.
+
+### Milestone 32 - Tooling, regression and release discipline hardening
+
+**Status:** Complete.
+
+**Purpose:** Raise the project from "works locally" toward repeatable product
+engineering.
+
+**Planned scope:**
+
+- add command-level tests for startup parsing and no-window workflows where
+  feasible without a GL context;
+- document manual launch checks and automated checks per workflow;
+- tighten release notes around experimental versus supported features;
+- review CMake target source lists and dependencies for explicit target-scoped
+  ownership.
+
+**Acceptance criteria:**
+
+- command workflows have deterministic tests or documented launch checks;
+- CMake source ownership remains explicit and target-scoped;
+- README and sandbox docs describe supported workflows without overclaiming
+  reconstruction quality or release readiness.
+
+**Delivered:**
+
+- added app-local workflow test coverage for mesh-builder refusal, async success
+  and export bookkeeping;
+- kept startup validation and no-window mesh export under CTest;
+- modernized local FetchContent dependency helpers away from deprecated direct
+  `FetchContent_Populate` calls;
+- verified build, CTest, CLI mesh export, max-point refusal and visual baseline
+  capture after the tooling change.
+
+---
+
 ## Coverage check against original deferred backlog
 
 All deferred original roadmap items are scheduled:

@@ -7,18 +7,22 @@ target_sources (
 		"ImageImport.hpp"
 		"Mesh.hpp"
 		"MeshLoader.hpp"
+		"PointCloudMesher.hpp"
 		"PointCloud.hpp"
 		"PointCloudLoader.hpp"
 		"SandboxProject.hpp"
+		"SurfaceExport.hpp"
 		"SurfaceImport.hpp"
 	PRIVATE
 		"CameraPose.cpp"
 		"CameraPoseLoader.cpp"
 		"ImageImport.cpp"
 		"Mesh.cpp"
+		"PointCloudMesher.cpp"
 		"PointCloud.cpp"
 		"PointCloudLoader.cpp"
 		"SandboxProject.cpp"
+		"SurfaceExport.cpp"
 		"SurfaceImport.cpp"
 )
 target_include_directories (

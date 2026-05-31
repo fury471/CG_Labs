@@ -4,11 +4,9 @@ FetchContent_Declare (
 	tinyfiledialogs
 	GIT_REPOSITORY [[https://git.code.sf.net/p/tinyfiledialogs/code]]
 	GIT_TAG "${LUGGCGL_TINYFILEDIALOGS_REVISION}"
+	SOURCE_SUBDIR [[cmake-fetchcontent-noop]]
 )
-FetchContent_GetProperties (tinyfiledialogs)
-if (NOT tinyfiledialogs_POPULATED)
-	FetchContent_Populate (tinyfiledialogs)
-endif ()
+FetchContent_MakeAvailable (tinyfiledialogs)
 
 add_library (tinyfiledialogs::tinyfiledialogs INTERFACE IMPORTED)
 set_target_properties (tinyfiledialogs::tinyfiledialogs PROPERTIES

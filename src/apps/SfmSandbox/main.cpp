@@ -1,4 +1,5 @@
 #include "SfmSandboxApp.hpp"
+#include "SfmSandboxStartup.hpp"
 #include "config.hpp"
 #include "core/Bonobo.h"
 #include "sandbox/core/FrameClock.hpp"
@@ -30,6 +31,13 @@ int main(int argc, char** argv)
 		for (std::string const& message : validation.messages)
 			stream << message << '\n';
 		return validation.succeeded ? EXIT_SUCCESS : EXIT_FAILURE;
+	}
+	if (!startup_options.build_mesh_path.empty()) {
+		sfm::app::MeshBuildCommandResult const mesh_build = sfm::app::build_mesh_from_startup_project(startup_options);
+		std::ostream& stream = mesh_build.succeeded ? std::cout : std::cerr;
+		for (std::string const& message : mesh_build.messages)
+			stream << message << '\n';
+		return mesh_build.succeeded ? EXIT_SUCCESS : EXIT_FAILURE;
 	}
 
 	Bonobo framework;

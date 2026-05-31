@@ -9,6 +9,7 @@ cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ctest --test-dir build --output-on-failure
 build\src\apps\SfmSandbox\SfmSandbox.exe --validate-install
+build\src\apps\SfmSandbox\SfmSandbox.exe --build-mesh build\sandbox-output\generated_surface.obj
 ```
 
 ## Required launch checks
@@ -42,12 +43,16 @@ M25 GPU timing diagnostics or unavailable-timer message
 ```text
 point size slider changes point size
 point colour mode changes point appearance
+camera pose visibility toggle works
 surface visibility toggle works
 surface colour update works
 surface reload failure keeps previous valid surface
 associated image visibility toggle works
 associated camera selector moves the image plane
 image reload failure keeps previous valid image
+point-cloud mesh build failure keeps previous valid surface
+large point-cloud mesh builds report the max-point guard instead of freezing UI
+active surface OBJ export writes a reloadable OBJ
 marker instancing toggle changes active draw-call count
 marker count slider updates reference/instanced draw-call comparison after rebuild
 window resize keeps render target complete
@@ -79,6 +84,7 @@ framebuffer size
 project manifest
 point count
 camera pose count
+camera pose visibility
 surface visibility and triangle count
 image visibility and size
 marker count

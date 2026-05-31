@@ -21,6 +21,12 @@ provided with:
 SfmSandbox.exe --project path\to\project.sfmproj
 ```
 
+The no-window mesh builder also uses the selected project manifest:
+
+```text
+SfmSandbox.exe --project path\to\project.sfmproj --build-mesh output.obj
+```
+
 ## Format
 
 The manifest is line-oriented UTF-8 compatible text:
@@ -36,10 +42,10 @@ containing the manifest file.
 Supported keys:
 
 ```text
-point_cloud
-camera_poses
-surface
-image
+point_cloud   required
+camera_poses  optional
+surface       optional
+image         optional
 ```
 
 Example:
@@ -51,12 +57,26 @@ surface = sample_surface.obj
 image = sample_camera_image.ppm
 ```
 
+Only `point_cloud` is required. Optional layers may be omitted or set to an
+empty value:
+
+```text
+point_cloud = sample_point_cloud_ascii.ply
+camera_poses =
+surface =
+image =
+```
+
+Empty optional values mean the layer starts disabled. The sandbox should not
+fall back to demo camera poses, sample surfaces or sample images when a selected
+project intentionally leaves those fields empty.
+
 ## Failure policy
 
-The parser reports unsupported keys, malformed lines and missing required paths
-as diagnostics. Startup still falls back to the documented sample resources when
-the selected manifest cannot be loaded, so the sandbox remains runnable during
-development.
+The parser reports unsupported keys, malformed lines and a missing
+`point_cloud` path as diagnostics. Startup still falls back to the documented
+sample resources when the selected manifest cannot be loaded, so the sandbox
+remains runnable during development. Empty optional paths are not errors.
 
 Individual asset reloads keep their existing transactional behavior: a failed
 point-cloud, pose, surface or image load does not destroy the previous visible
@@ -65,6 +85,7 @@ data.
 ## Current limitations
 
 - The manifest stores startup paths only.
+- `--build-mesh` currently consumes only the `point_cloud` path.
 - It does not persist UI settings yet.
 - It does not describe multiple images, camera intrinsics, dense tracks or
   reconstruction metadata.

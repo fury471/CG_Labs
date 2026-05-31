@@ -37,13 +37,17 @@ The sandbox currently supports:
 * render-target, CPU profiling and GPU pass-timing diagnostics;
 * an instanced repeated-marker stress scene;
 * a small project manifest for startup dataset paths;
-* startup validation and one-frame visual baseline capture commands.
+* startup validation and one-frame visual baseline capture commands;
+* an initial constrained point-cloud-to-mesh builder with OBJ export.
 
 Main sandbox paths:
 
 .. code-block:: text
 
    src/apps/SfmSandbox
+   src/apps/SfmSandbox/SfmSandboxMeshBuilderPanel.*
+   src/apps/SfmSandbox/SfmSandboxMeshWorkflow.*
+   src/apps/SfmSandbox/SfmSandboxStartup.*
    src/sandbox/core
    src/sandbox/scene
    src/sandbox/gfx
@@ -75,6 +79,10 @@ Use a different startup manifest with:
 
    build\src\apps\SfmSandbox\SfmSandbox.exe --project path\to\project.sfmproj
 
+In a sandbox project manifest, ``point_cloud`` is the required dataset path.
+``camera_poses``, ``surface`` and ``image`` are optional; leave them empty to
+start those layers disabled.
+
 Validate startup resources and shaders without opening a window:
 
 .. code-block:: bat
@@ -87,6 +95,25 @@ Capture a default visual regression baseline:
 
    build\src\apps\SfmSandbox\SfmSandbox.exe --capture-baseline build\sandbox-captures\sfm-baseline.ppm
 
+Build an OBJ mesh from the active project point cloud without opening a window:
+
+.. code-block:: bat
+
+   build\src\apps\SfmSandbox\SfmSandbox.exe --build-mesh build\sandbox-output\generated_surface.obj
+
+The current builder is a constrained projected triangulation path for small,
+surface-like clouds. It is guarded by a default point limit so large clouds
+report diagnostics instead of freezing the interactive UI. Generated OBJ files
+include provenance comments for the source point cloud, algorithm, projection
+and build counters.
+
+Startup parsing, install validation and no-window mesh export are isolated from
+the live viewer class in ``SfmSandboxStartup`` so command workflows can be tested
+and extended without turning the interactive app into a catch-all module.
+Interactive mesh-building state is isolated in ``SfmSandboxMeshWorkflow`` and
+the mesh-builder controls live in ``SfmSandboxMeshBuilderPanel``; the viewer app
+keeps renderer upload and prior-surface preservation.
+
 Sandbox pull requests use ``.github/workflows/sandbox-ci.yml`` for the Windows
 Ninja configure/build/test gate. AI-assisted intermediate commits use
 ``[skip ci]``; final pull requests should not skip CI.
@@ -96,12 +123,14 @@ Important sandbox documents:
 * ``docs/sandbox/ROADMAP.md``;
 * ``docs/sandbox/ENGINEERING_STANDARDS.md``;
 * ``docs/sandbox/project-manifest.md``;
+* ``docs/sandbox/point-to-mesh-builder.md``;
 * ``docs/sandbox/visual-regression-capture.md``;
 * ``docs/sandbox/gpu-timing-telemetry.md``;
 * ``docs/sandbox/release-candidate-packaging.md``;
 * ``docs/sandbox/release-readiness-m20.md``;
 * ``docs/sandbox/resource-license-inventory.md``;
-* ``docs/sandbox/rendering-regression-checklist.md``.
+* ``docs/sandbox/rendering-regression-checklist.md``;
+* ``docs/sandbox/adr/0003-reconstruction-backend-strategy.md``.
 
 The ``res/sandbox`` samples are synthetic development samples created for the
 sandbox. Inherited course resources and third-party dependencies still need

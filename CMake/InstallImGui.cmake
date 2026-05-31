@@ -5,8 +5,6 @@ FetchContent_Declare (
 	GIT_REPOSITORY [[https://github.com/ocornut/imgui.git]]
 	GIT_TAG "${LUGGCGL_IMGUI_VERSION}"
 	GIT_SHALLOW ON
+	SOURCE_SUBDIR [[cmake-fetchcontent-noop]]
 )
-FetchContent_GetProperties (imgui)
-if (NOT imgui_POPULATED)
-	FetchContent_Populate (imgui)
-endif ()
+FetchContent_MakeAvailable (imgui)

@@ -375,7 +375,13 @@ RendererBuildResult Renderer::reload_camera_poses(sfm::scene::CameraPoseSet cons
 		return result;
 	}
 	if (camera_poses.empty()) {
-		add_message(result, "Camera pose reload failed: pose set is empty; previous poses kept");
+		m_camera_vertex_buffer.reset();
+		m_camera_vertex_array.reset();
+		m_camera_line_vertex_count = 0;
+		m_camera_pose_ready = true;
+		m_ready = m_grid_ready && m_point_count > 0;
+		add_message(result, "Camera pose layer disabled: pose set is empty");
+		result.succeeded = true;
 		return result;
 	}
 
@@ -442,7 +448,9 @@ void Renderer::draw_submission(RenderSubmission const& submission,
 	statistics.line_vertices_drawn += submission.mesh.vertex_count;
 }
 
-void Renderer::render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept
+void Renderer::render(glm::mat4 const& world_to_clip,
+                      PointCloudRenderSettings const& point_settings,
+                      bool show_camera_poses) const noexcept
 {
 	RendererFrameStatistics statistics{};
 	if (!m_ready) {
@@ -461,7 +469,7 @@ void Renderer::render(glm::mat4 const& world_to_clip, PointCloudRenderSettings c
 			MaterialDescriptor{ MaterialKind::LineColour, "line colour" }
 		});
 	}
-	if (m_camera_pose_ready) {
+	if (show_camera_poses && m_camera_pose_ready && m_camera_line_vertex_count > 0) {
 		queue.submit(RenderSubmission{
 			MeshHandle{ m_camera_vertex_array.id(), GL_LINES, m_camera_line_vertex_count, "camera frustums" },
 			MaterialDescriptor{ MaterialKind::LineColour, "line colour" }

@@ -5,12 +5,10 @@ if (NOT Stb_FOUND)
 		stb
 		GIT_REPOSITORY [[https://github.com/nothings/stb]]
 		GIT_TAG "${LUGGCGL_STB_REVISION}"
+		SOURCE_SUBDIR [[cmake-fetchcontent-noop]]
 	)
 
-	FetchContent_GetProperties (stb)
-	if (NOT stb_POPULATED)
-		FetchContent_Populate (stb)
-	endif ()
+	FetchContent_MakeAvailable (stb)
 
 	add_library (stb::stb INTERFACE IMPORTED)
 	set_target_properties (stb::stb PROPERTIES

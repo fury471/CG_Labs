@@ -354,14 +354,33 @@ image = images/source.ppm
 	require(result.project.image_path == (directory.path() / "images/source.ppm").lexically_normal(), "image path should resolve relative to manifest");
 }
 
+void test_sandbox_project_manifest_allows_empty_optional_paths()
+{
+	TemporaryDirectory directory;
+	std::filesystem::path const manifest = write_text_file(directory,
+	                                                       "optional.sfmproj",
+	                                                       R"data(point_cloud = data/points.ply
+camera_poses =
+surface =
+image =
+)data");
+
+	sfm::scene::SandboxProjectLoadResult const result = sfm::scene::load_sandbox_project(manifest);
+	require(result.succeeded, "sandbox project manifest should allow empty optional asset paths");
+	require(result.project.point_cloud_path == (directory.path() / "data/points.ply").lexically_normal(), "point-cloud path should still resolve");
+	require(result.project.camera_pose_path.empty(), "empty camera pose path should disable camera layer");
+	require(result.project.surface_path.empty(), "empty surface path should disable surface layer");
+	require(result.project.image_path.empty(), "empty image path should disable image layer");
+}
+
 void test_sandbox_project_manifest_rejects_invalid_input()
 {
 	TemporaryDirectory directory;
 	std::filesystem::path const missing_key_manifest = write_text_file(directory,
 	                                                                   "missing.sfmproj",
-	                                                                   R"data(point_cloud = points.ply
-camera_poses = poses.txt
+	                                                                   R"data(camera_poses = poses.txt
 surface = surface.obj
+image = image.ppm
 )data");
 	std::filesystem::path const unsupported_key_manifest = write_text_file(directory,
 	                                                                       "unsupported.sfmproj",
@@ -401,6 +420,7 @@ int main()
 		{ "COLMAP images loader converts identity pose to internal graphics convention", test_colmap_images_loader_converts_identity_pose_to_internal_graphics_convention },
 		{ "COLMAP images loader computes camera center from world-to-camera translation", test_colmap_images_loader_computes_camera_center_from_world_to_camera_translation },
 		{ "sandbox project manifest resolves relative paths", test_sandbox_project_manifest_resolves_relative_paths },
+		{ "sandbox project manifest allows empty optional paths", test_sandbox_project_manifest_allows_empty_optional_paths },
 		{ "sandbox project manifest rejects invalid input", test_sandbox_project_manifest_rejects_invalid_input },
 	};
 

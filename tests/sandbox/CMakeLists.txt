@@ -55,9 +55,63 @@ set_tests_properties (
 		LABELS "sandbox;scene;image;parsers"
 )
 
+add_executable (sfm_point_cloud_mesher_tests)
+target_sources (
+	sfm_point_cloud_mesher_tests
+	PRIVATE
+		"PointCloudMesherTests.cpp"
+)
+target_link_libraries (
+	sfm_point_cloud_mesher_tests
+	PRIVATE
+		sfm_sandbox_options
+		sfm_sandbox_scene
+)
+add_test (NAME sfm_point_cloud_mesher_tests COMMAND sfm_point_cloud_mesher_tests)
+set_tests_properties (
+	sfm_point_cloud_mesher_tests
+	PROPERTIES
+	LABELS "sandbox;scene;meshing;export"
+)
+
+add_executable (sfm_sandbox_mesh_workflow_tests)
+target_sources (
+	sfm_sandbox_mesh_workflow_tests
+	PRIVATE
+		"../../src/apps/SfmSandbox/SfmSandboxMeshWorkflow.cpp"
+		"SfmSandboxMeshWorkflowTests.cpp"
+)
+target_include_directories (
+	sfm_sandbox_mesh_workflow_tests
+	PRIVATE
+		"${PROJECT_SOURCE_DIR}/src/apps/SfmSandbox"
+)
+target_link_libraries (
+	sfm_sandbox_mesh_workflow_tests
+	PRIVATE
+		sfm_sandbox_options
+		sfm_sandbox_scene
+)
+add_test (NAME sfm_sandbox_mesh_workflow_tests COMMAND sfm_sandbox_mesh_workflow_tests)
+set_tests_properties (
+	sfm_sandbox_mesh_workflow_tests
+	PROPERTIES
+		LABELS "sandbox;app;meshing;workflow"
+)
+
 add_test (NAME sfm_sandbox_startup_validation COMMAND SfmSandbox --validate-install)
 set_tests_properties (
 	sfm_sandbox_startup_validation
 	PROPERTIES
 		LABELS "sandbox;startup;packaging"
+)
+
+add_test (
+	NAME sfm_sandbox_mesh_build_cli
+	COMMAND SfmSandbox --build-mesh "${CMAKE_BINARY_DIR}/sandbox-output/ctest_generated_surface.obj"
+)
+set_tests_properties (
+	sfm_sandbox_mesh_build_cli
+	PROPERTIES
+		LABELS "sandbox;meshing;cli;export"
 )

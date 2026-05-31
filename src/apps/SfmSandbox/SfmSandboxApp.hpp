@@ -1,5 +1,8 @@
 #pragma once
 
+#include "SfmSandboxMeshWorkflow.hpp"
+#include "SfmSandboxStartup.hpp"
+
 #include "sandbox/core/FrameClock.hpp"
 #include "sandbox/core/FrameProfiler.hpp"
 #include "sandbox/gfx/ClearPass.hpp"
@@ -26,25 +29,6 @@
 
 namespace sfm::app
 {
-
-struct StartupOptions final
-{
-	std::filesystem::path project_manifest_path{};
-	std::filesystem::path capture_baseline_path{};
-	bool show_help{ false };
-	bool validate_install{ false };
-	std::vector<std::string> messages{};
-};
-
-struct StartupValidationResult final
-{
-	bool succeeded{ false };
-	std::vector<std::string> messages{};
-};
-
-[[nodiscard]] StartupOptions parse_startup_options(int argc, char** argv);
-[[nodiscard]] StartupValidationResult validate_startup_assets(StartupOptions const& options);
-void print_startup_help();
 
 class SfmSandboxApp final
 {
@@ -92,6 +76,7 @@ private:
 		int reload_count{ 0 };
 		int selected_pose{ 0 };
 		bool using_loaded_data{ false };
+		bool visible{ false };
 	};
 
 	struct SurfaceState final
@@ -101,6 +86,7 @@ private:
 		sfm::scene::SurfaceMesh data{};
 		sfm::scene::SurfaceStatistics statistics{};
 		std::string active_source{};
+		std::string source_kind{ "empty" };
 		std::string last_reload_status{};
 		int reload_count{ 0 };
 		bool visible{ true };
@@ -134,15 +120,31 @@ private:
 	void reload_camera_poses_from_ui();
 	void reload_surface_from_ui();
 	void reload_image_from_ui();
+	void build_surface_from_point_cloud();
+	void poll_mesh_build_result();
+	void apply_mesh_build_result(sfm::scene::PointToMeshBuildResult build_result);
+	void export_active_surface_from_ui();
 	void rebuild_image_plane_for_active_camera();
 	void update_surface_colour();
 
 	void draw_project_section();
+	void draw_overview_tab(sfm::core::FrameTiming const& frame_timing,
+	                       int framebuffer_width,
+	                       int framebuffer_height,
+	                       float camera_aspect);
+	void draw_assets_tab();
+	void draw_render_tab(sfm::core::FrameProfiler const& frame_profiler);
+	void draw_diagnostics_tab(sfm::core::FrameTiming const& frame_timing,
+	                          sfm::core::FrameProfiler const& frame_profiler,
+	                          int framebuffer_width,
+	                          int framebuffer_height,
+	                          float camera_aspect);
 	void draw_marker_stress_section();
 	void draw_render_target_section(sfm::core::FrameProfiler const& frame_profiler);
 	void draw_gpu_profiler_section();
 	void draw_image_section();
 	void draw_surface_section();
+	void draw_mesh_builder_section();
 	void draw_point_cloud_section();
 	void draw_camera_pose_section();
 	void draw_renderer_section();
@@ -159,6 +161,7 @@ private:
 	CameraPoseState m_camera_poses{};
 	SurfaceState m_surface{};
 	ImageState m_image{};
+	SfmSandboxMeshWorkflow m_mesh_builder{};
 
 	sfm::gfx::PointCloudRenderSettings m_point_settings{};
 	sfm::gfx::MarkerStressSettings m_marker_settings{};

@@ -5,6 +5,18 @@ target_sources (
 		[[main.cpp]]
 		[[SfmSandboxApp.cpp]]
 		[[SfmSandboxApp.hpp]]
+		[[SfmSandboxCaptureMetadata.cpp]]
+		[[SfmSandboxCaptureMetadata.hpp]]
+		[[SfmSandboxMeshBuilderPanel.cpp]]
+		[[SfmSandboxMeshBuilderPanel.hpp]]
+		[[SfmSandboxMeshWorkflow.cpp]]
+		[[SfmSandboxMeshWorkflow.hpp]]
+		[[SfmSandboxPanels.cpp]]
+		[[SfmSandboxPanels.hpp]]
+		[[SfmSandboxStartup.cpp]]
+		[[SfmSandboxStartup.hpp]]
+		[[SfmSandboxUi.cpp]]
+		[[SfmSandboxUi.hpp]]
 )
 target_link_libraries (
 	SfmSandbox

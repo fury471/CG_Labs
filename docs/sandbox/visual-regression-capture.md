@@ -32,8 +32,10 @@ framebuffer size
 project manifest path
 project load status
 point-cloud path and point count
-camera-pose path and pose count
+camera-pose path, visibility and pose count
 surface path, visibility and triangle count
+surface kind, source format and vertex count
+generated-mesh builder counters when the active surface is generated
 image path, visibility and size
 marker visibility, marker count and instancing mode
 point display settings

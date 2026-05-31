@@ -38,6 +38,11 @@ std::filesystem::path resolve_manifest_path(std::filesystem::path const& manifes
 	return (manifest_path.parent_path() / value).lexically_normal();
 }
 
+bool key_is_optional(std::string_view key) noexcept
+{
+	return key == kCameraPosesKey || key == kSurfaceKey || key == kImageKey;
+}
+
 bool assign_key(SandboxProject& project,
                 std::filesystem::path const& manifest_path,
                 std::string_view key,
@@ -46,7 +51,11 @@ bool assign_key(SandboxProject& project,
                 std::size_t line_number)
 {
 	if (value.empty()) {
-		add_message(result, "Project manifest line " + std::to_string(line_number) + " has an empty value for key '" + std::string{ key } + "'");
+		if (key_is_optional(key)) {
+			add_message(result, "Optional project key '" + std::string{ key } + "' disabled by empty value on line " + std::to_string(line_number));
+			return true;
+		}
+		add_message(result, "Project manifest line " + std::to_string(line_number) + " has an empty required value for key '" + std::string{ key } + "'");
 		return false;
 	}
 
@@ -72,10 +81,13 @@ bool assign_key(SandboxProject& project,
 	return false;
 }
 
-void require_path(SandboxProjectLoadResult& result, std::filesystem::path const& path, std::string_view key)
+bool require_path(SandboxProjectLoadResult& result, std::filesystem::path const& path, std::string_view key)
 {
-	if (path.empty())
+	if (path.empty()) {
 		add_message(result, "Project manifest is missing required key '" + std::string{ key } + "'");
+		return false;
+	}
+	return true;
 }
 
 } // namespace
@@ -104,6 +116,7 @@ SandboxProjectLoadResult load_sandbox_project(std::filesystem::path const& manif
 
 	std::string line;
 	std::size_t line_number = 0u;
+	bool has_errors = false;
 	while (std::getline(file, line)) {
 		++line_number;
 
@@ -117,6 +130,7 @@ SandboxProjectLoadResult load_sandbox_project(std::filesystem::path const& manif
 		auto const separator = line.find('=');
 		if (separator == std::string::npos) {
 			add_message(result, "Project manifest line " + std::to_string(line_number) + " is missing '='");
+			has_errors = true;
 			continue;
 		}
 
@@ -124,23 +138,18 @@ SandboxProjectLoadResult load_sandbox_project(std::filesystem::path const& manif
 		std::string const value = trim(std::string_view{ line }.substr(separator + 1u));
 		if (key.empty()) {
 			add_message(result, "Project manifest line " + std::to_string(line_number) + " has an empty key");
+			has_errors = true;
 			continue;
 		}
 
-		assign_key(result.project, manifest_path, key, value, result, line_number);
+		has_errors = !assign_key(result.project, manifest_path, key, value, result, line_number) || has_errors;
 	}
 
-	std::size_t const diagnostic_count_before_required_checks = result.messages.size();
-	require_path(result, result.project.point_cloud_path, kPointCloudKey);
-	require_path(result, result.project.camera_pose_path, kCameraPosesKey);
-	require_path(result, result.project.surface_path, kSurfaceKey);
-	require_path(result, result.project.image_path, kImageKey);
-
-	if (result.messages.size() != diagnostic_count_before_required_checks) {
+	if (!require_path(result, result.project.point_cloud_path, kPointCloudKey)) {
 		add_message(result, "Project manifest load failed: missing required startup paths");
 		return result;
 	}
-	if (!result.messages.empty()) {
+	if (has_errors) {
 		add_message(result, "Project manifest load failed: invalid manifest syntax or unsupported keys");
 		return result;
 	}
@@ -148,9 +157,9 @@ SandboxProjectLoadResult load_sandbox_project(std::filesystem::path const& manif
 	result.succeeded = true;
 	add_message(result, "Loaded sandbox project manifest '" + manifest_path.string() + "'");
 	add_message(result, "Point cloud: " + result.project.point_cloud_path.string());
-	add_message(result, "Camera poses: " + result.project.camera_pose_path.string());
-	add_message(result, "Surface: " + result.project.surface_path.string());
-	add_message(result, "Image: " + result.project.image_path.string());
+	add_message(result, result.project.camera_pose_path.empty() ? "Camera poses: disabled" : "Camera poses: " + result.project.camera_pose_path.string());
+	add_message(result, result.project.surface_path.empty() ? "Surface: disabled" : "Surface: " + result.project.surface_path.string());
+	add_message(result, result.project.image_path.empty() ? "Image: disabled" : "Image: " + result.project.image_path.string());
 	return result;
 }
 

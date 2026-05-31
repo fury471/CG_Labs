@@ -6,13 +6,9 @@ FetchContent_Declare (
 	GIT_REPOSITORY [[https://github.com/Dav1dde/glad.git]]
 	GIT_TAG "${LUGGCGL_GLAD_VERSION}"
 	GIT_SHALLOW ON
+	SOURCE_SUBDIR [[cmake]]
 )
-FetchContent_GetProperties (glad)
-if (NOT glad_POPULATED)
-	FetchContent_Populate (glad)
-endif ()
-
-add_subdirectory ("${glad_SOURCE_DIR}/cmake" "${glad_BINARY_DIR}" EXCLUDE_FROM_ALL)
+FetchContent_MakeAvailable (glad)
 glad_add_library (
 	glad_gl_core_46
 	STATIC

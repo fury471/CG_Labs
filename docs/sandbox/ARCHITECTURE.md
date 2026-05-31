@@ -4,7 +4,10 @@
 
 `CG_Labs` is currently a teaching repository: it provides the Bonobo helper framework, five EDAF80 programs and an EDAN35 deferred-rendering program. That code is valuable as an executable reference and rendering-learning asset. It is not the intended product architecture for the SfM sandbox.
 
-The target system is a real-time 3D reconstruction viewer that can evolve without coupling computer-vision visualization features directly to OpenGL calls or assignment code.
+The target system is a real-time 3D reconstruction workbench that can evolve
+from viewing reconstruction assets into deriving, inspecting and exporting
+geometry from point data without coupling computer-vision features directly to
+OpenGL calls or assignment code.
 
 ## 2. Current constraints and motivations
 
@@ -28,6 +31,8 @@ The target architecture shall:
 4. Permit incremental implementation with a runnable executable after each milestone.
 5. Support high-volume visualization, especially point clouds and camera trajectories.
 6. Preserve an educational mapping from architectural types to graphics concepts.
+7. Keep reconstruction builders testable as CPU-side product logic before they
+   are connected to rendering or UI workflows.
 
 ## 4. Layered dependency rule
 
@@ -93,6 +98,8 @@ src/
       Renderable.hpp
       Scene.hpp/.cpp
       Frustum.hpp/.cpp
+      PointCloudMesher.hpp/.cpp
+      SurfaceExport.hpp/.cpp
     viz/
       PointCloud.hpp/.cpp
       PointCloudRenderer.hpp/.cpp
@@ -105,6 +112,9 @@ src/
   apps/
     SfmSandbox/
       main.cpp
+      SfmSandboxMeshBuilderPanel.hpp/.cpp
+      SfmSandboxMeshWorkflow.hpp/.cpp
+      SfmSandboxStartup.hpp/.cpp
       SfmSandboxApp.hpp/.cpp
 ```
 
@@ -154,6 +164,8 @@ Renderable  Mesh + Material + Transform association
 Camera      view/projection state
 Scene       collection/lifetime and queries for submitted content
 Frustum     visibility-test volume
+PointCloudMesher converts constrained point data into CPU-side meshes
+SurfaceExport writes generated/imported meshes to interchange formats
 ```
 
 A `Renderable` is data to submit; it does not draw itself.
@@ -169,7 +181,19 @@ Trajectory          ordered pose path
 ReconstructedMesh   reconstructed surface representation
 ImageOverlay        source-frame inspection data
 ProjectionOverlay   projective association between imagery and geometry
+MeshBuilder         reconstruction workflow settings, diagnostics and provenance
 ```
+
+### 6.4 Builder model
+
+The first point-to-mesh path belongs below the app layer and above raw rendering.
+It consumes `PointCloud`, produces `SurfaceMesh`, returns explicit diagnostics
+and does not create OpenGL objects. The app may render or export the resulting
+mesh, but the conversion algorithm must remain usable from tests and no-window
+commands.
+
+M27 starts with constrained projected triangulation for surface-like data. It is
+not a substitute for Poisson, ball-pivoting or volumetric reconstruction.
 
 ## 7. Rendering data flow
 
@@ -262,6 +286,7 @@ New COLMAP importer -> viz/asset-facing code
 New PLY point format -> asset/viz data loader
 New point splat shader -> gfx pipeline + viz renderer integration
 New analysis panel -> application UI consuming viz/renderer statistics
+New mesh builder -> scene/viz CPU algorithm + optional app/CLI workflow
 ```
 
 A later graphics backend replacement is not promised, but the architecture avoids unnecessarily exposing raw OpenGL operations above `gfx`.
@@ -286,14 +311,31 @@ Milestone 22 splits the executable entry point from app-local product state:
 
 ```text
 main.cpp               platform/window/input/frame orchestration
-SfmSandboxApp.hpp/.cpp startup project, asset state, reload transactions,
-                       renderer instances and status-panel sections
+SfmSandboxStartup      command-line parsing, startup validation and no-window
+                       commands such as mesh export
+SfmSandboxMeshWorkflow async mesh-build state, safety-limit refusal, export
+                       bookkeeping and builder diagnostics
+SfmSandboxMeshBuilderPanel
+                       mesh-builder ImGui controls that return requested
+                       actions without owning renderer state
+SfmSandboxPanels      reusable inspector widgets and statistics tables
+SfmSandboxCaptureMetadata
+                       baseline sidecar serialization for reproducible
+                       visual captures
+SfmSandboxApp.hpp/.cpp live viewer state, reload transactions, renderer
+                       instances and status-panel sections
 ```
 
 This keeps reusable importers and renderers below the app layer while preventing
 the executable entry point from becoming the long-term container for unrelated
-viewer workflows. Future UI panels may be split further once their behavior is
-stable, but `main.cpp` should remain focused on platform lifecycle and frame
+viewer workflows. No-window workflows use app-local command modules so the live
+viewer class does not mix command-line parsing, file validation and interactive
+frame state. Mesh-builder UI is split from mesh-builder workflow state; shared
+panel widgets and capture-metadata writing are app-local helpers, so the live
+viewer composes those behaviours without owning their formatting details. The
+app still performs renderer upload because GPU ownership belongs to the live
+viewer. Future UI panels may be split further once their behavior is stable,
+but `main.cpp` should remain focused on platform lifecycle and frame
 coordination.
 
 ## 12. Commercial-readiness limits

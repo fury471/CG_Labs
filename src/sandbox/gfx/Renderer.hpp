@@ -62,7 +62,9 @@ public:
 	[[nodiscard]] RendererBuildResult reload_point_cloud(sfm::scene::PointCloud const& point_cloud);
 	[[nodiscard]] RendererBuildResult reload_camera_poses(sfm::scene::CameraPoseSet const& camera_poses);
 
-	void render(glm::mat4 const& world_to_clip, PointCloudRenderSettings const& point_settings) const noexcept;
+	void render(glm::mat4 const& world_to_clip,
+	            PointCloudRenderSettings const& point_settings,
+	            bool show_camera_poses) const noexcept;
 
 	[[nodiscard]] bool ready() const noexcept { return m_ready; }
 	[[nodiscard]] GLsizei line_vertex_count() const noexcept { return m_line_vertex_count; }
