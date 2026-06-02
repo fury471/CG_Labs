@@ -1,14 +1,7 @@
 name: Sandbox CI
 
 on:
-  pull_request:
-    branches:
-      - feature/sfm-visualization-sandbox
-      - vs2026
-  push:
-    branches:
-      - feature/sfm-visualization-sandbox
-      - vs2026
+  workflow_dispatch:
 
 jobs:
   windows-ninja-build-test:

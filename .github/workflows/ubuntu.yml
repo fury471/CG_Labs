@@ -2,20 +2,6 @@ name: Ubuntu
 
 on:
   workflow_dispatch:
-  push:
-    paths-ignore:
-      - '*.rst'
-      - 'UNLICENCE'
-      - 'Doxyfile.in'
-      - 'images/**'
-      - 'shaders/**'
-  pull_request:
-    paths-ignore:
-      - '*.rst'
-      - 'UNLICENCE'
-      - 'Doxyfile.in'
-      - 'images/**'
-      - 'shaders/**'
 
 jobs:
   build:
